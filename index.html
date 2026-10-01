@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orçamento de Frete</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-container">
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+
+      <p id="step-indicator" class="step-indicator">Etapa 1 de 9</p>
+
+      <!-- ETAPA 1 -->
+      <section class="step active" id="step-1">
+        <h1>Monte seu frete agora</h1>
+
+        <p>
+          Responda algumas perguntas rápidas e receba uma estimativa. No final,
+          você volta para o WhatsApp com o resumo do seu frete.
+        </p>
+
+        <button class="btn-primary" onclick="nextStep()">
+          Começar orçamento
+        </button>
+      </section>
+
+      <!-- ETAPA 2 -->
+      <section class="step" id="step-2">
+        <h2>Seus dados</h2>
+
+        <label for="nome">Nome</label>
+        <input
+          type="text"
+          id="nome"
+          placeholder="Digite seu nome"
+          autocomplete="name"
+        />
+
+        <label for="telefone">WhatsApp</label>
+        <input
+          type="tel"
+          id="telefone"
+          placeholder="(71) 90000-0000"
+          autocomplete="tel"
+        />
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="validarEtapa2()">
+            Continuar
+          </button>
+        </div>
+      </section>
+
+      <!-- ETAPA 3 -->
+      <section class="step" id="step-3">
+        <h2>Quando será o frete?</h2>
+
+        <p>Escolha uma data ou informe que ainda não decidiu.</p>
+
+        <label for="dataFrete">Data pretendida</label>
+        <input type="date" id="dataFrete" />
+
+        <button
+          type="button"
+          id="btn-data-indefinida"
+          class="option-button"
+          onclick="selecionarDataIndefinida()"
+        >
+          Ainda não defini a data
+        </button>
+
+        <p id="data-selecionada" class="selection-message"></p>
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="validarEtapa3()">
+            Continuar
+          </button>
+        </div>
+      </section>
+
+      <!-- ETAPA 4 -->
+      <section class="step" id="step-4">
+        <h2>Locais do frete</h2>
+
+        <p>
+          Informe o endereço completo. Isso ajuda a deixar a estimativa mais
+          precisa.
+        </p>
+
+        <h3 class="section-subtitle">Local de saída</h3>
+
+        <label for="origem-cep">CEP (opcional)</label>
+        <input
+          type="text"
+          id="origem-cep"
+          placeholder="Ex.: 40000-000"
+          inputmode="numeric"
+          autocomplete="postal-code"
+        />
+        <p id="origem-status-cep" class="helper-note" aria-live="polite"></p>
+
+        <label for="origem-rua">Rua</label>
+        <input type="text" id="origem-rua" placeholder="Ex.: Rua das Flores" />
+
+        <label for="origem-numero">Número</label>
+        <input type="text" id="origem-numero" placeholder="Ex.: 123" />
+
+        <label for="origem-bairro">Bairro</label>
+        <input type="text" id="origem-bairro" placeholder="Ex.: Centro" />
+
+        <label for="origem-cidade">Cidade</label>
+        <input
+          type="text"
+          id="origem-cidade"
+          value="Salvador"
+          placeholder="Ex.: Feira de Santana"
+        />
+
+        <label for="origem-estado">Estado (UF)</label>
+        <input
+          type="text"
+          id="origem-estado"
+          value="BA"
+          maxlength="2"
+          placeholder="Ex.: BA"
+        />
+
+        <div id="paradas-container"></div>
+
+        <button type="button" class="btn-secondary" onclick="adicionarParada()">
+          Adicionar parada antes do destino
+        </button>
+
+        <hr />
+
+        <h3 class="section-subtitle">Local de destino</h3>
+
+        <label for="destino-cep">CEP (opcional)</label>
+        <input
+          type="text"
+          id="destino-cep"
+          placeholder="Ex.: 40000-000"
+          inputmode="numeric"
+          autocomplete="postal-code"
+        />
+        <p id="destino-status-cep" class="helper-note" aria-live="polite"></p>
+
+        <label for="destino-rua">Rua</label>
+        <input
+          type="text"
+          id="destino-rua"
+          placeholder="Ex.: Avenida Principal"
+        />
+
+        <label for="destino-numero">Número</label>
+        <input type="text" id="destino-numero" placeholder="Ex.: 456" />
+
+        <label for="destino-bairro">Bairro</label>
+        <input type="text" id="destino-bairro" placeholder="Ex.: Pituba" />
+
+        <label for="destino-cidade">Cidade</label>
+        <input
+          type="text"
+          id="destino-cidade"
+          value="Salvador"
+          placeholder="Ex.: Feira de Santana"
+        />
+
+        <label for="destino-estado">Estado (UF)</label>
+        <input
+          type="text"
+          id="destino-estado"
+          value="BA"
+          maxlength="2"
+          placeholder="Ex.: BA"
+        />
+
+        <div class="info-box">
+          O valor gerado é uma estimativa. O orçamento final poderá ser ajustado
+          após a confirmação do endereço completo.
+        </div>
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="validarEtapa4()">
+            Continuar
+          </button>
+        </div>
+      </section>
+
+      <!-- ETAPA 5 -->
+      <section class="step" id="step-5">
+        <h2>Confira seus dados</h2>
+
+        <p>
+          Confira as informações antes de continuar. Você poderá editar cada
+          parte.
+        </p>
+
+        <div class="review-box">
+          <h3>Cliente</h3>
+          <p id="resumo-cliente"></p>
+          <button class="edit-button" onclick="irParaEtapa(2)">Editar</button>
+
+          <hr />
+
+          <h3>Data</h3>
+          <p id="resumo-data"></p>
+          <button class="edit-button" onclick="irParaEtapa(3)">Editar</button>
+
+          <hr />
+
+          <h3>Locais</h3>
+          <p id="resumo-locais"></p>
+          <button class="edit-button" onclick="irParaEtapa(4)">Editar</button>
+        </div>
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="continuarParaItens()">
+            Continuar para os itens
+          </button>
+        </div>
+      </section>
+      <!-- ETAPA 6 -->
+      <section class="step" id="step-6">
+        <h2>O que será transportado?</h2>
+
+        <p>
+          Selecione os itens e informe a quantidade. Você poderá adicionar itens
+          de várias categorias.
+        </p>
+
+        <div class="info-box">
+          <strong>Importante:</strong> os itens da lista representam objetos de
+          tamanho e peso comuns. Objetos muito grandes, pesados ou fora do
+          padrão podem alterar o valor do frete. <br /><br />
+          Se não encontrar seu item, selecione outro de tamanho e peso
+          aproximados e informe o nome real nas observações.
+        </div>
+
+        <div class="example-box">
+          <strong>Exemplo:</strong> se você precisa transportar painéis solares,
+          selecione um item de tamanho parecido, informe a quantidade e escreva
+          nas observações: “Painéis solares — 4 unidades”.
+        </div>
+
+        <h3 class="section-subtitle">Categorias</h3>
+
+        <div class="category-grid">
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('sala')"
+          >
+            Sala
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('quarto')"
+          >
+            Quarto
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('cozinha')"
+          >
+            Cozinha
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('area-servico')"
+          >
+            Área de serviço
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('banheiro')"
+          >
+            Banheiro
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('garagem')"
+          >
+            Garagem
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('escritorio')"
+          >
+            Escritório
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('loja')"
+          >
+            Loja
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('construcao')"
+          >
+            Construção
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('descarte')"
+          >
+            Descarte
+          </button>
+
+          <button
+            type="button"
+            class="category-button"
+            onclick="mostrarCategoria('especiais')"
+          >
+            Especiais
+          </button>
+        </div>
+
+        <div id="catalogo-itens" class="catalogo-itens">
+          <p class="empty-message">Escolha uma categoria para ver os itens.</p>
+        </div>
+
+        <div class="selected-items-box">
+          <h3>Itens selecionados</h3>
+
+          <div id="lista-itens-selecionados">
+            <p class="empty-message">Nenhum item selecionado ainda.</p>
+          </div>
+        </div>
+
+        <label for="observacoes-itens"> Observações sobre os itens </label>
+
+        <textarea
+          id="observacoes-itens"
+          rows="4"
+          placeholder="Ex.: geladeira muito grande, sofá em L, painel solar, item frágil..."
+        ></textarea>
+
+        <div class="info-box">
+          Caso tenha escolhido um item apenas como aproximação, escreva aqui o
+          nome real do objeto e todos os detalhes importantes.
+        </div>
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="validarEtapa6()">
+            Continuar
+          </button>
+        </div>
+      </section>
+      <!-- ETAPA 7 -->
+      <section class="step" id="step-7">
+        <h2>Acesso e escadas</h2>
+
+        <p>
+          Informe como será o acesso nos dois locais. Essas informações ajudam o
+          fretista a avaliar o trabalho.
+        </p>
+
+        <h3 class="section-subtitle">Local de saída</h3>
+
+        <label for="acesso-origem">Onde o veículo poderá parar?</label>
+        <select id="acesso-origem">
+          <option value="">Selecione uma opção</option>
+          <option value="porta">O veículo poderá parar na porta</option>
+          <option value="perto">
+            Poderá parar perto, com uma caminhada curta
+          </option>
+          <option value="distante">O veículo ficará distante do imóvel</option>
+          <option value="corredor">
+            Há beco, corredor ou passagem até o imóvel
+          </option>
+          <option value="fundo">Os itens ficam no fundo do terreno</option>
+        </select>
+
+        <label for="andares-origem">Quantos andares há na saída?</label>
+        <input type="number" id="andares-origem" min="0" step="1" value="0" />
+
+        <label for="escada-origem">Escada ou elevador na saída?</label>
+        <select id="escada-origem">
+          <option value="">Selecione uma opção</option>
+          <option value="nao-se-aplica">Não há escada nem elevador</option>
+          <option value="larga">Escada larga e espaçosa</option>
+          <option value="normal">Escada normal</option>
+          <option value="estreita">Escada estreita ou pouco espaçosa</option>
+          <option value="elevador">Elevador disponível</option>
+        </select>
+
+        <hr />
+
+        <h3 class="section-subtitle">Local de destino</h3>
+
+        <label for="acesso-destino">Onde o veículo poderá parar?</label>
+        <select id="acesso-destino">
+          <option value="">Selecione uma opção</option>
+          <option value="porta">O veículo poderá parar na porta</option>
+          <option value="perto">
+            Poderá parar perto, com uma caminhada curta
+          </option>
+          <option value="distante">O veículo ficará distante do imóvel</option>
+          <option value="corredor">
+            Há beco, corredor ou passagem até o imóvel
+          </option>
+          <option value="fundo">Os itens ficam no fundo do terreno</option>
+        </select>
+
+        <label for="andares-destino">Quantos andares há no destino?</label>
+        <input type="number" id="andares-destino" min="0" step="1" value="0" />
+
+        <label for="escada-destino">Escada ou elevador no destino?</label>
+        <select id="escada-destino">
+          <option value="">Selecione uma opção</option>
+          <option value="nao-se-aplica">Não há escada nem elevador</option>
+          <option value="larga">Escada larga e espaçosa</option>
+          <option value="normal">Escada normal</option>
+          <option value="estreita">Escada estreita ou pouco espaçosa</option>
+          <option value="elevador">Elevador disponível</option>
+        </select>
+
+        <hr />
+
+        <h3 class="section-subtitle">Ajudantes</h3>
+
+        <label for="ajudantes">
+          Como será a ajuda para carregar e descarregar?
+        </label>
+
+        <select id="ajudantes">
+          <option value="">Selecione uma opção</option>
+          <option value="com">Com ajudantes</option>
+          <option value="1">1 ajudante apenas</option>
+          <option value="sem">Sem ajudantes</option>
+        </select>
+
+        <p id="texto-um-ajudante" class="helper-note" hidden>
+          Com 1 ajudante apenas, entende-se que se o trabalho precisar de mais
+          pessoas, deverá haver gente no local para ajudar a carregar.
+        </p>
+
+        <p id="texto-sem-ajudantes" class="helper-note" hidden>
+          Sem ajudantes: o serviço será apenas de transporte do material.
+        </p>
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="validarEtapa7()">
+            Continuar
+          </button>
+        </div>
+      </section>
+      <!-- ETAPA 8 -->
+      <section class="step" id="step-8">
+        <h2>Confira seu frete</h2>
+
+        <p>
+          Revise as informações. Se precisar corrigir algo, use o botão “Editar”
+          daquela seção.
+        </p>
+
+        <div class="review-box">
+          <h3>Cliente</h3>
+          <p id="revisao-cliente"></p>
+          <button class="edit-button" onclick="irParaEtapa(2)">Editar</button>
+
+          <hr />
+
+          <h3>Data</h3>
+          <p id="revisao-data"></p>
+          <button class="edit-button" onclick="irParaEtapa(3)">Editar</button>
+
+          <hr />
+
+          <h3>Endereços</h3>
+          <p id="revisao-enderecos"></p>
+          <button class="edit-button" onclick="irParaEtapa(4)">Editar</button>
+
+          <hr />
+
+          <h3>Itens e observações</h3>
+          <p id="revisao-itens"></p>
+          <button class="edit-button" onclick="irParaEtapa(6)">Editar</button>
+
+          <hr />
+
+          <h3>Acesso, escadas e ajudantes</h3>
+          <p id="revisao-acesso"></p>
+          <button class="edit-button" onclick="irParaEtapa(7)">Editar</button>
+        </div>
+
+        <div class="info-box">
+          Esta revisão ainda não é uma confirmação do frete. O valor será
+          estimado com base nas informações fornecidas.
+        </div>
+
+        <div class="nav-buttons">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+
+          <button class="btn-primary" onclick="continuarDaRevisao()">
+            Continuar
+          </button>
+        </div>
+      </section>
+      <!-- ETAPA 9 -->
+      <section class="step" id="step-9">
+        <h2>Estimativa do frete</h2>
+
+        <p>
+          Com base nas informações fornecidas, esta é a estimativa para o seu
+          frete.
+        </p>
+
+        <input type="hidden" id="distancia-total" value="" />
+        <input type="hidden" id="tempo-percurso" value="" />
+
+        <p id="status-rota-maps" class="status-rota-maps" role="status">
+          Calculando a rota, aguarde um instante...
+        </p>
+
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick="calcularRotaAutomatica()"
+        >
+          Tentar novamente
+        </button>
+
+        <label for="pode-ter-pedagio"> O trajeto pode ter pedágio? </label>
+
+        <select id="pode-ter-pedagio">
+          <option value="">Selecione uma opção</option>
+          <option value="sim">Sim ou não tenho certeza</option>
+          <option value="nao">Acredito que não</option>
+        </select>
+
+        <p class="helper-note">
+          O motorista confirmará a existência e o valor dos pedágios durante a
+          conversa pelo WhatsApp. Esse custo não está incluído na estimativa.
+        </p>
+
+        <button
+          type="button"
+          id="btn-calcular-estimativa"
+          class="btn-primary"
+          style="width: 100%; margin-top: 8px"
+          onclick="calcularEstimativa()"
+        >
+          Calcular estimativa
+        </button>
+
+        <div id="resultado-estimativa" class="resultado-estimativa" hidden>
+          <!-- Informações que o cliente pode ver -->
+          <p id="codigo-orcamento" class="codigo-orcamento"></p>
+
+          <p class="aviso-conferir-endereco">
+            O valor parece baixo para a distância do seu frete? Confira os
+            endereços informados. Se estiver incompleto ou incorreto pode
+            alterar a rota e o valor estimado.
+          </p>
+
+          <p class="tempo-total-cliente">
+            Tempo total estimado:
+            <strong id="est-tempo-total"></strong>
+          </p>
+
+          <div class="valor-estimado-cliente">
+            <span>Valor estimado</span>
+            <strong id="est-valor-final"></strong>
+            <small>(custos adicionais podem ser aplicáveis)</small>
+          </div>
+
+          <p id="est-custo-ajudantes" class="custo-ajudantes-cliente"></p>
+
+          <div class="info-box">
+            Esta é uma estimativa. O valor final poderá variar conforme as
+            condições da operação e a existência de custos adicionais.
+          </div>
+
+          <!-- Dados do cálculo mantidos para uso administrativo futuro.
+       Não são exibidos na tela do cliente. -->
+          <div hidden aria-hidden="true">
+            <span id="est-total-itens"></span>
+            <span id="est-tempo-manuseio"></span>
+            <span id="est-tempo-percurso"></span>
+            <span id="est-equipe"></span>
+            <span id="est-valor-hora"></span>
+            <span id="est-custo-carro"></span>
+            <span id="est-custo-equipe"></span>
+            <span id="est-subtotal"></span>
+            <span id="est-margem"></span>
+          </div>
+
+          <div id="decisao-estimativa" class="decisao-estimativa">
+            <button
+              type="button"
+              class="btn-primary"
+              onclick="aceitarEstimativa(false)"
+            >
+              Gostei, quero fechar
+            </button>
+
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="mostrarOpcaoDesconto()"
+            >
+              Não gostei do valor
+            </button>
+          </div>
+
+          <div id="bloco-desconto" class="bloco-desconto" hidden>
+            <p>Consigo aplicar um desconto especial para fechar agora:</p>
+
+            <div class="valor-estimado-cliente valor-com-desconto">
+              <span>Valor com desconto</span>
+              <strong id="est-valor-desconto"></strong>
+            </div>
+
+            <div class="decisao-estimativa">
+              <button
+                type="button"
+                class="btn-primary"
+                onclick="aceitarEstimativa(true)"
+              >
+                Aceitar com desconto
+              </button>
+
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick="encerrarAtendimento()"
+              >
+                Não, encerrar atendimento
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="nav-buttons" style="margin-top: 16px">
+          <button class="btn-secondary" onclick="prevStep()">Voltar</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

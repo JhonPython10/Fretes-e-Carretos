@@ -1,10 +1,21 @@
 let currentStep = 1;
 const totalSteps = 9;
+const ETAPAS_VISIVEIS = [1, 2, 3, 4, 6, 7, 8, 9]; // a etapa 5 (revisão repetida) é pulada
 
 let dataIndefinida = false;
 
 // Lead: uma sessão = um ID
-const leadId = `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const leadId = (() => {
+  try {
+    const salvo = JSON.parse(localStorage.getItem('orcamentoRascunho') || 'null');
+    if (salvo && salvo.leadId && Date.now() - salvo.salvoEm < 6 * 60 * 60 * 1000) {
+      return salvo.leadId;
+    }
+  } catch (erro) {
+    // sem armazenamento: segue com um ID novo
+  }
+  return `L${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+})();
 let etapaMaximaEnviada = 2;
 
 function enviarLead(etapa) {
@@ -47,6 +58,18 @@ const ROTULOS_VEICULO = {
   outro: 'Outro ou não sei',
 };
 
+function dadosBaseVisita() {
+  const ehCelular = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+
+  return {
+    campanha: parametrosUrl.get('campanha') || '',
+    anuncio: parametrosUrl.get('anuncio') || '',
+    palavra: parametrosUrl.get('palavra') || '',
+    gclid: parametrosUrl.get('gclid') || '',
+    dispositivo: ehCelular ? 'celular' : 'computador',
+  };
+}
+
 function enviarVisita(extra = {}) {
   if (parametrosUrl.get('teste') === '1') {
     return; // acessos de teste não entram na planilha
@@ -55,7 +78,12 @@ function enviarVisita(extra = {}) {
   fetch(URL_APPS_SCRIPT, {
     method: 'POST',
     keepalive: true,
-    body: JSON.stringify({ tipo: 'visita', sessaoId: leadId, ...extra }),
+    body: JSON.stringify({
+      tipo: 'visita',
+      sessaoId: leadId,
+      ...dadosBaseVisita(),
+      ...extra,
+    }),
   }).catch((erro) => {
     console.error('Erro ao registrar visita:', erro);
   });
@@ -110,12 +138,13 @@ function showStep(step) {
     etapaAtual.classList.add('active');
   }
 
-  const progresso = (step / totalSteps) * 100;
+  const posicao = ETAPAS_VISIVEIS.indexOf(step) + 1;
+  const progresso = (posicao / ETAPAS_VISIVEIS.length) * 100;
 
   document.getElementById('progress-fill').style.width = `${progresso}%`;
 
   document.getElementById('step-indicator').innerText =
-    `Etapa ${step} de ${totalSteps}`;
+    `Etapa ${posicao} de ${ETAPAS_VISIVEIS.length}`;
 
   currentStep = step;
 
@@ -135,14 +164,18 @@ function showStep(step) {
 }
 
 function nextStep() {
-  if (currentStep < totalSteps) {
-    showStep(currentStep + 1);
+  const i = ETAPAS_VISIVEIS.indexOf(currentStep);
+
+  if (i >= 0 && i < ETAPAS_VISIVEIS.length - 1) {
+    showStep(ETAPAS_VISIVEIS[i + 1]);
   }
 }
 
 function prevStep() {
-  if (currentStep > 1) {
-    showStep(currentStep - 1);
+  const i = ETAPAS_VISIVEIS.indexOf(currentStep);
+
+  if (i > 0) {
+    showStep(ETAPAS_VISIVEIS[i - 1]);
   }
 }
 
@@ -194,8 +227,7 @@ function validarEtapa3() {
   const data = document.getElementById('dataFrete').value;
 
   if (data === '' && !dataIndefinida) {
-    alert('Escolha uma data ou selecione "Ainda não defini a data".');
-    return;
+    selecionarDataIndefinida(); // sem data escolhida = "ainda não defini"
   }
 
   nextStep();
@@ -1095,6 +1127,21 @@ function validarEtapa7() {
     }
   }
 
+  const andaresSaida = Number(document.getElementById('andares-origem').value || 0);
+  const andaresDestino = Number(document.getElementById('andares-destino').value || 0);
+
+  if (andaresSaida > 0 && document.getElementById('escada-origem').value === 'nao-se-aplica') {
+    alert('Você informou andares na saída. Escolha o tipo de escada ou elevador.');
+    document.getElementById('escada-origem').focus();
+    return;
+  }
+
+  if (andaresDestino > 0 && document.getElementById('escada-destino').value === 'nao-se-aplica') {
+    alert('Você informou andares no destino. Escolha o tipo de escada ou elevador.');
+    document.getElementById('escada-destino').focus();
+    return;
+  }
+
   preencherRevisaoCompleta();
   showStep(8);
 }
@@ -1682,6 +1729,7 @@ function enviarParaSheets(dados) {
 }
 
 function aceitarEstimativa(comDesconto) {
+  limparRascunho();
   decisaoTomada = true;
   pararTimerInatividade();
 
@@ -1736,6 +1784,7 @@ function aceitarEstimativa(comDesconto) {
 }
 
 function encerrarAtendimento() {
+  limparRascunho();
   decisaoTomada = true;
   pararTimerInatividade();
 
@@ -1967,3 +2016,139 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('pagehide', registrarSaidaDaPagina);
+
+// Etapa de acesso: já vem com o caso mais comum, o cliente só muda se for diferente
+[
+  ['acesso-origem', 'porta'],
+  ['escada-origem', 'nao-se-aplica'],
+  ['acesso-destino', 'porta'],
+  ['escada-destino', 'nao-se-aplica'],
+].forEach(([id, valor]) => {
+  const campo = document.getElementById(id);
+  if (campo && !campo.value) {
+    campo.value = valor;
+  }
+});
+
+// ===== Manter o orçamento se o cliente sair da página e voltar =====
+const CHAVE_RASCUNHO = 'orcamentoRascunho';
+const VALIDADE_RASCUNHO_MS = 6 * 60 * 60 * 1000; // 6 horas
+let rascunhoEncerrado = false;
+
+function limparRascunho() {
+  rascunhoEncerrado = true;
+  try {
+    localStorage.removeItem(CHAVE_RASCUNHO);
+  } catch (erro) {
+    // ignora
+  }
+}
+
+function salvarRascunho() {
+  if (rascunhoEncerrado || currentStep < 3) {
+    return;
+  }
+
+  try {
+    const campos = {};
+
+    document
+      .querySelectorAll('.step input, .step select, .step textarea')
+      .forEach((campo) => {
+        if (campo.id && campo.type !== 'hidden') {
+          campos[campo.id] = campo.value;
+        }
+      });
+
+    const paradas = [...document.querySelectorAll('.parada-item')].map((p) =>
+      Number(p.dataset.parada),
+    );
+
+    localStorage.setItem(
+      CHAVE_RASCUNHO,
+      JSON.stringify({
+        salvoEm: Date.now(),
+        leadId,
+        etapa: currentStep,
+        campos,
+        paradas,
+        itens: itensSelecionados,
+        dataIndefinida,
+      }),
+    );
+  } catch (erro) {
+    console.error('Erro ao guardar rascunho:', erro);
+  }
+}
+
+function recomecarOrcamento() {
+  limparRascunho();
+  location.reload();
+}
+
+function mostrarAvisoRascunho() {
+  const aviso = document.createElement('div');
+  aviso.className = 'info-box';
+  aviso.innerHTML =
+    'Continuamos de onde você parou. ' +
+    '<button type="button" class="edit-button" onclick="recomecarOrcamento()">Começar de novo</button>';
+
+  const indicador = document.getElementById('step-indicator');
+  indicador.parentNode.insertBefore(aviso, indicador);
+}
+
+function restaurarRascunho() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_RASCUNHO);
+    if (!bruto) return;
+
+    const r = JSON.parse(bruto);
+
+    if (!r || Date.now() - r.salvoEm > VALIDADE_RASCUNHO_MS || r.etapa < 3) {
+      localStorage.removeItem(CHAVE_RASCUNHO);
+      return;
+    }
+
+    (r.paradas || []).forEach((numero) => {
+      contadorParadas = numero - 1;
+      adicionarParada();
+    });
+
+    Object.entries(r.campos || {}).forEach(([id, valor]) => {
+      const campo = document.getElementById(id);
+      if (campo) campo.value = valor;
+    });
+
+    Object.keys(itensSelecionados).forEach((k) => delete itensSelecionados[k]);
+    Object.assign(itensSelecionados, r.itens || {});
+    atualizarListaSelecionados();
+
+    if (r.dataIndefinida) {
+      dataIndefinida = false;
+      selecionarDataIndefinida();
+    }
+
+    const ajudantes = document.getElementById('ajudantes');
+    if (ajudantes) ajudantes.dispatchEvent(new Event('change'));
+
+    const etapa = r.etapa >= 9 ? 8 : r.etapa; // a estimativa é recalculada, então volta à revisão
+
+    if (etapa === 8) {
+      preencherRevisaoCompleta();
+    }
+
+    showStep(etapa);
+    mostrarAvisoRascunho();
+  } catch (erro) {
+    console.error('Erro ao restaurar rascunho:', erro);
+  }
+}
+
+['input', 'change'].forEach((tipo) => document.addEventListener(tipo, salvarRascunho));
+document.addEventListener('click', () => setTimeout(salvarRascunho, 0));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') salvarRascunho();
+});
+window.addEventListener('pagehide', salvarRascunho);
+
+restaurarRascunho();

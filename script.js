@@ -763,7 +763,7 @@ const itensCatalogo = {
     'Saco de cimento',
     'Saco de areia',
     'Tijolos',
-    'Palete de tijolos',
+    'Palete (ex.: 500 tijolos ou blocos)',
     'Telha de barro',
     'Telha de concreto',
     'Telha Eternit',
@@ -926,8 +926,8 @@ const categoriaPesoItens = {
   Cômoda: 'pesado',
   Freezer: 'pesado',
   'Caixa de piso de 45 kg': 'pesado',
-  Tijolos: 'pesado',
-  'Palete de tijolos': 'pesado',
+  Tijolos: 'medio',
+  'Palete (ex.: 500 tijolos ou blocos)': 'pesado',
   'Restos de obra — volume alto': 'pesado',
   'Animal grande': 'pesado',
   'Planta grande': 'pesado',
@@ -1263,6 +1263,15 @@ const TEMPO_POR_CATEGORIA = {
 };
 
 const ITENS_LEVES_POR_VIAGEM = 2; // uma pessoa leva 2 itens leves por viagem
+
+// Itens com capacidade própria por viagem (quantas unidades uma pessoa leva de uma vez).
+// Estes números são estimativas iniciais: ajuste conforme os fretes reais.
+const ITENS_POR_VIAGEM = {
+  Blocos: 4,
+  Tijolos: 10,
+  'Telha de barro': 6,
+  'Telha de concreto': 4,
+};
 const VALOR_POR_KM = 1.77;
 const VALOR_HORA_MOTORISTA = 35;
 const VALOR_HORA_PROPRIETARIO = 40;
@@ -1425,6 +1434,14 @@ function calcularEstimativa() {
       tempoPorAcesso[acessoDestino] +
       acrescimoVerticalOrigem +
       acrescimoVerticalDestino;
+
+    const porViagem = ITENS_POR_VIAGEM[nomeItem];
+
+    if (porViagem) {
+      // item com capacidade própria: o tempo de acesso e escada vale por viagem, não por unidade
+      tempoManuseioMinutos += acrescimoPorItem * Math.ceil(quantidade / porViagem);
+      continue;
+    }
 
     if (categoria === 'leve') {
       // itens leves são somados e levados em pares (2 por viagem)
@@ -1606,92 +1623,135 @@ function formatarMoeda(valor) {
 }
 
 function montarResumoParaWhatsApp(status, valorTexto) {
-  const nome = document.getElementById('nome')?.value.trim() || 'Não informado';
-  const telefone =
-    document.getElementById('telefone')?.value.trim() || 'Não informado';
-  const codigo =
-    document.getElementById('codigo-orcamento')?.textContent.trim() ||
-    'Não informado';
-  const data = document.getElementById('dataFrete')?.value || '';
+  const valorCampo = (id) => document.getElementById(id)?.value.trim() || '';
 
-  const textoData = dataIndefinida
-    ? 'Ainda não definida'
-    : data
-      ? formatarData(data)
-      : 'Não informada';
+  const nome = valorCampo('nome') || 'Não informado';
+  const telefone = valorCampo('telefone') || 'Não informado';
+  const codigo = (
+    document.getElementById('codigo-orcamento')?.textContent || ''
+  )
+    .replace('Código do orçamento:', '')
+    .trim();
 
-  const nomesItens = Object.keys(itensSelecionados || {});
-  const textoItens = nomesItens.length
-    ? nomesItens
-        .map((nomeItem) => `• ${nomeItem}: ${itensSelecionados[nomeItem]}`)
-        .join('\n')
-    : 'Nenhum item informado';
+  const data = valorCampo('dataFrete');
+  const textoData = dataIndefinida || !data ? 'a definir' : formatarData(data);
 
-  const observacoes =
-    document.getElementById('observacoes-itens')?.value.trim() || 'Nenhuma';
+  // Endereço compacto: "Rua, 12, Bairro, Cidade-UF"
+  const enderecoCompacto = (prefixo) => {
+    const rua = valorCampo(`${prefixo}-rua`);
+    const numero = valorCampo(`${prefixo}-numero`);
+    const bairro = valorCampo(`${prefixo}-bairro`);
+    const cidade = valorCampo(`${prefixo}-cidade`);
+    const uf = valorCampo(`${prefixo}-estado`);
 
-  const valorAjudantes = document.getElementById('ajudantes')?.value || '';
-  let textoAjudantes = 'Não informado';
+    return [
+      [rua, numero].filter(Boolean).join(', '),
+      bairro,
+      [cidade, uf].filter(Boolean).join('-'),
+    ]
+      .filter(Boolean)
+      .join(', ');
+  };
 
-  if (valorAjudantes === 'com') {
-    textoAjudantes = 'Com ajudantes';
-  } else if (valorAjudantes === '1') {
-    textoAjudantes =
-      '1 ajudante apenas; cliente deverá disponibilizar mais pessoas no local, se necessário';
-  } else if (valorAjudantes === 'sem') {
-    textoAjudantes = 'Sem ajudantes';
-  }
+  const textoAcesso = {
+    porta: 'veículo na porta',
+    perto: 'veículo perto, caminhada curta',
+    distante: 'veículo distante',
+    corredor: 'beco/corredor até o imóvel',
+    fundo: 'itens no fundo do terreno',
+  };
 
-  const podeTerPedagio =
-    document.getElementById('pode-ter-pedagio')?.value || '';
+  const textoEscada = {
+    larga: 'escada larga',
+    normal: 'escada normal',
+    estreita: 'escada estreita',
+    elevador: 'elevador',
+  };
 
-  let textoPedagio = 'Não informado; motorista deve verificar.';
+  const linhaAcesso = (sufixo) => {
+    const andares = Number(valorCampo(`andares-${sufixo}`) || 0);
 
-  if (podeTerPedagio === 'sim') {
-    textoPedagio =
-      'Cliente sinaliza que pode haver pedágio; motorista deve confirmar. O valor não está incluído na estimativa.';
-  } else if (podeTerPedagio === 'nao') {
-    textoPedagio =
-      'Cliente acredita que não há pedágio; motorista deve confirmar. O valor não está incluído na estimativa.';
-  }
+    return [
+      textoAcesso[valorCampo(`acesso-${sufixo}`)],
+      andares > 0 ? `${andares} ${andares === 1 ? 'andar' : 'andares'}` : 'térreo',
+      textoEscada[valorCampo(`escada-${sufixo}`)],
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  };
 
   const linhasParadas = obterEnderecosParadas().map(
-    (parada, indice) => `Parada ${indice + 1} — endereço: *${parada.endereco}*`,
+    (parada, indice) =>
+      `🔁 Parada ${indice + 1}: ${[
+        [parada.rua, parada.numeroEndereco].filter(Boolean).join(', '),
+        parada.bairro,
+        [parada.cidade, parada.estado].filter(Boolean).join('-'),
+      ]
+        .filter(Boolean)
+        .join(', ')}`,
   );
 
-  const detalhesAcesso = [
-    `Saída — endereço: *${montarEndereco('origem')}*`,
-    ...linhasParadas,
-    `Destino — endereço: *${montarEndereco('destino')}*`,
-    '',
-    `Saída — veículo: *${obterTextoSelecionado('acesso-origem')}*`,
-    `Saída — andares: *${document.getElementById('andares-origem')?.value || '0'}*`,
-    `Saída — escada/elevador: *${obterTextoSelecionado('escada-origem')}*`,
-    '',
-    `Destino — veículo: *${obterTextoSelecionado('acesso-destino')}*`,
-    `Destino — andares: *${document.getElementById('andares-destino')?.value || '0'}*`,
-    `Destino — escada/elevador: *${obterTextoSelecionado('escada-destino')}*`,
-  ].join('\n');
+  const nomesItens = Object.keys(itensSelecionados || {});
+  const totalUnidades = nomesItens.reduce(
+    (total, nomeItem) => total + Number(itensSelecionados[nomeItem] || 0),
+    0,
+  );
+  const textoItens = nomesItens.length
+    ? nomesItens
+        .map((nomeItem) => {
+          const quantidade = Number(itensSelecionados[nomeItem] || 0);
+          return quantidade > 1 ? `${nomeItem} ×${quantidade}` : nomeItem;
+        })
+        .join(', ') +
+      ` (${totalUnidades} ${totalUnidades === 1 ? 'item' : 'itens'})`
+    : 'Nenhum item informado';
+
+  const escolhaAjudantes = valorCampo('ajudantes');
+  const quantidadeAjudantes = ultimaEstimativa?.quantidadeAjudantes || 0;
+  let textoAjudantes = 'não informado';
+
+  if (escolhaAjudantes === 'com') {
+    textoAjudantes = quantidadeAjudantes
+      ? `Com ${quantidadeAjudantes} ajudantes`
+      : 'Com ajudantes';
+  } else if (escolhaAjudantes === '1') {
+    textoAjudantes = '1 ajudante (cliente ajuda, se precisar)';
+  } else if (escolhaAjudantes === 'sem') {
+    textoAjudantes = 'Sem ajudantes (só transporte)';
+  }
+
+  const podeTerPedagio = valorCampo('pode-ter-pedagio');
+  let textoPedagio = 'a confirmar';
+
+  if (podeTerPedagio === 'sim') {
+    textoPedagio = 'possível (não incluso)';
+  } else if (podeTerPedagio === 'nao') {
+    textoPedagio = 'cliente acha que não (confirmar)';
+  }
+
+  const observacoes = valorCampo('observacoes-itens');
+  const emojiStatus = status.startsWith('Não') ? '❌' : '✅';
 
   return [
-    `*${status.toLocaleUpperCase('pt-BR')}*`,
+    'Olá! Fiz um orçamento pelo site.',
     '',
-    `Nome: *${nome}*`,
-    `WhatsApp: *${telefone}*`,
-    `Data do frete: *${textoData}*`,
-    codigo,
-    `Valor estimado: *${valorTexto}*`,
+    `${emojiStatus} *${status.toLocaleUpperCase('pt-BR')}*`,
+    `💰 *${valorTexto}*${codigo ? ` · Cód. ${codigo}` : ''}`,
     '',
-    `Pedágio: *${textoPedagio}*`,
+    `👤 ${nome}`,
+    `📱 ${telefone}`,
+    `📅 Data: ${textoData}`,
     '',
-    'Materiais e itens:',
-    textoItens,
+    `📍 Saída: ${enderecoCompacto('origem')}`,
+    `   ↳ ${linhaAcesso('origem')}`,
+    ...linhasParadas,
+    `🏁 Destino: ${enderecoCompacto('destino')}`,
+    `   ↳ ${linhaAcesso('destino')}`,
     '',
-    'Acessos e condições:',
-    detalhesAcesso,
-    '',
-    `Ajudantes: *${textoAjudantes}*`,
-    `Observações: *${observacoes}*`,
+    `📦 ${textoItens}`,
+    `👷 ${textoAjudantes}`,
+    `🛣️ Pedágio: ${textoPedagio}`,
+    ...(observacoes ? [`📝 Obs: ${observacoes}`] : []),
   ].join('\n');
 }
 
@@ -1767,9 +1827,6 @@ function aceitarEstimativa(comDesconto) {
     formatarMoeda(valor),
   );
 
-  const mensagemComCodigo =
-    mensagem + `\n\n🔐 Código de validação: ${codigoValidacao}`;
-
   const nomesItens = Object.keys(itensSelecionados);
   const quantidadeTotal = nomesItens.reduce(
     (total, nomeItem) => total + Number(itensSelecionados[nomeItem] || 0),
@@ -1795,7 +1852,7 @@ function aceitarEstimativa(comDesconto) {
     codigoOrcamento: codigoCompleto,
   });
 
-  abrirWhatsApp(mensagemComCodigo);
+  abrirWhatsApp(mensagem);
 }
 
 function encerrarAtendimento() {
@@ -1808,9 +1865,9 @@ function encerrarAtendimento() {
   }
 
   const mensagem = montarResumoParaWhatsApp(
-    'Não aceitou (nem com desconto)',
-    `Valor estimado: ${formatarMoeda(ultimaEstimativa.valorEstimado)} | ` +
-      `Valor com desconto: ${formatarMoeda(ultimaEstimativa.valorComDesconto)}`,
+    'Não aceitou',
+    `${formatarMoeda(ultimaEstimativa.valorEstimado)} ` +
+      `(com desconto: ${formatarMoeda(ultimaEstimativa.valorComDesconto)})`,
   );
 
   // Registra na aba Rejeitados
@@ -2167,3 +2224,18 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', salvarRascunho);
 
 restaurarRascunho();
+
+// ===== Modal "Não encontrei meu item" =====
+function abrirModalItem() {
+  document.getElementById('modal-item').hidden = false;
+}
+
+function fecharModalItem(irParaObservacoes) {
+  document.getElementById('modal-item').hidden = true;
+
+  if (irParaObservacoes) {
+    const campo = document.getElementById('observacoes-itens');
+    campo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    campo.focus();
+  }
+}

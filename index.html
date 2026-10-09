@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Orçamento de Frete</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" href="favicon.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -246,20 +249,6 @@
           de várias categorias.
         </p>
 
-        <div class="info-box">
-          <strong>Importante:</strong> os itens da lista representam objetos de
-          tamanho e peso comuns. Objetos muito grandes, pesados ou fora do
-          padrão podem alterar o valor do frete. <br /><br />
-          Se não encontrar seu item, selecione outro de tamanho e peso
-          aproximados e informe o nome real nas observações.
-        </div>
-
-        <div class="example-box">
-          <strong>Exemplo:</strong> se você precisa transportar painéis solares,
-          selecione um item de tamanho parecido, informe a quantidade e escreva
-          nas observações: “Painéis solares — 4 unidades”.
-        </div>
-
         <h3 class="section-subtitle">Categorias</h3>
 
         <div class="category-grid">
@@ -352,6 +341,10 @@
           </button>
         </div>
 
+        <button type="button" class="btn-secondary" onclick="abrirModalItem()">
+          Não encontrei meu item
+        </button>
+
         <div id="catalogo-itens" class="catalogo-itens">
           <p class="empty-message">Escolha uma categoria para ver os itens.</p>
         </div>
@@ -371,11 +364,6 @@
           rows="4"
           placeholder="Ex.: geladeira muito grande, sofá em L, painel solar, item frágil..."
         ></textarea>
-
-        <div class="info-box">
-          Caso tenha escolhido um item apenas como aproximação, escreva aqui o
-          nome real do objeto e todos os detalhes importantes.
-        </div>
 
         <div class="nav-buttons">
           <button class="btn-secondary" onclick="prevStep()">Voltar</button>
@@ -609,8 +597,11 @@
           <p id="est-custo-ajudantes" class="custo-ajudantes-cliente"></p>
 
           <div class="info-box">
-            Esta é uma estimativa. O valor final poderá variar conforme as
-            condições da operação e a existência de custos adicionais.
+            Esta é uma estimativa para <strong>1 viagem</strong>, dentro da
+            capacidade do veículo. Se a carga exigir mais viagens, isso é
+            combinado com o prestador pelo WhatsApp. Domingos, feriados e
+            trabalho noturno podem alterar o valor final, que será confirmado
+            pelo prestador, assim como eventuais custos adicionais.
           </div>
 
           <!-- Dados do cálculo mantidos para uso administrativo futuro.
@@ -677,6 +668,36 @@
         </div>
       </section>
     </main>
+
+    <div id="modal-item" class="modal-fundo" hidden>
+      <div
+        class="modal-caixa"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-item-titulo"
+      >
+        <h2 id="modal-item-titulo">Não achou seu item?</h2>
+
+        <p>
+          Escolha na lista um item parecido com o seu em tamanho, peso e
+          esforço para carregar.
+        </p>
+
+        <div class="example-box">
+          <strong>Exemplo:</strong> seu item é grande e pesado, mais ou menos
+          como uma geladeira. Selecione <strong>Geladeira</strong> e, nas
+          observações, escreva o nome real, como "cofre de 150 kg".
+        </div>
+
+        <button type="button" class="btn-primary" onclick="fecharModalItem(true)">
+          Entendi, ir para as observações
+        </button>
+
+        <button type="button" class="btn-secondary" onclick="fecharModalItem(false)">
+          Fechar
+        </button>
+      </div>
+    </div>
 
     <script src="script.js"></script>
   </body>

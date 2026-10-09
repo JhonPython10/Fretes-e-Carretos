@@ -819,19 +819,15 @@ const itensSelecionados = {};
 
 const categoriaPesoItens = {
   // Leves — 1 minuto
-  TV: 'leve',
   Cadeira: 'leve',
   Tapete: 'leve',
-  Poltrona: 'leve',
   Ventilador: 'leve',
   'Forno elétrico': 'leve',
   'Caixas/sacolas': 'leve',
   'Criado-mudo': 'leve',
   Espelho: 'leve',
   Computador: 'leve',
-  Botijão: 'leve',
   'Micro-ondas': 'leve',
-  Tanquinho: 'leve',
   Sapateira: 'leve',
   Acessórios: 'leve',
   Cesto: 'leve',
@@ -843,8 +839,6 @@ const categoriaPesoItens = {
   Arara: 'leve',
   Manequim: 'leve',
   'Saco de argamassa': 'leve',
-  'Saco de cimento': 'leve',
-  'Saco de areia': 'leve',
   Rejunte: 'leve',
   Tinta: 'leve',
   'Massa corrida': 'leve',
@@ -872,6 +866,12 @@ const categoriaPesoItens = {
   'Air fryer': 'leve',
 
   // Médios — 4 minutos
+  TV: 'medio',
+  Poltrona: 'medio',
+  Botijão: 'medio',
+  Tanquinho: 'medio',
+  'Saco de cimento': 'medio',
+  'Saco de areia': 'medio',
   Mesa: 'medio',
   Fogão: 'medio',
   Rack: 'medio',
@@ -1262,6 +1262,7 @@ const TEMPO_POR_CATEGORIA = {
   extraPesado: 16,
 };
 
+const ITENS_LEVES_POR_VIAGEM = 2; // uma pessoa leva 2 itens leves por viagem
 const VALOR_POR_KM = 1.77;
 const VALOR_HORA_MOTORISTA = 35;
 const VALOR_HORA_PROPRIETARIO = 40;
@@ -1405,6 +1406,8 @@ function calcularEstimativa() {
   }
 
   let tempoManuseioMinutos = 0;
+  let unidadesLeves = 0;
+  let tempoPorViagemLeve = 0;
 
   for (const nomeItem of nomesItens) {
     const quantidade = Number(itensSelecionados[nomeItem] || 0);
@@ -1423,7 +1426,19 @@ function calcularEstimativa() {
       acrescimoVerticalOrigem +
       acrescimoVerticalDestino;
 
+    if (categoria === 'leve') {
+      // itens leves são somados e levados em pares (2 por viagem)
+      unidadesLeves += quantidade;
+      tempoPorViagemLeve = acrescimoPorItem;
+      continue;
+    }
+
     tempoManuseioMinutos += acrescimoPorItem * quantidade;
+  }
+
+  if (unidadesLeves > 0) {
+    tempoManuseioMinutos +=
+      Math.ceil(unidadesLeves / ITENS_LEVES_POR_VIAGEM) * tempoPorViagemLeve;
   }
 
   const tempoTotalMinutos = tempoManuseioMinutos + tempoPercursoMinutos;

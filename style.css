@@ -593,3 +593,9 @@ input[type='number'] {
   background: #ffffff;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
+
+.aviso-destaque {
+  color: #b42318;
+  background: #fff1f0;
+  border-left-color: #b42318;
+}

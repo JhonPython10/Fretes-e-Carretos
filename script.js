@@ -58,6 +58,21 @@ const ROTULOS_VEICULO = {
   outro: 'Outro ou não sei',
 };
 
+// Google Ads: conversão "orçamento aceito" (a ação criada no Ads como "Contato Whatsapp").
+// Dispara só quando o cliente aceita o valor, com ou sem desconto.
+const CONVERSAO_ORCAMENTO_ACEITO = 'AW-18011704232/ojZUCO3PiZYdEKiX04xD';
+
+function registrarConversaoOrcamentoAceito() {
+  try {
+    if (typeof gtag !== 'function') {
+      return;
+    }
+    gtag('event', 'conversion', { send_to: CONVERSAO_ORCAMENTO_ACEITO });
+  } catch (erro) {
+    console.error('Erro ao registrar conversão:', erro);
+  }
+}
+
 function dadosBaseVisita() {
   const ehCelular = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 
@@ -1805,6 +1820,7 @@ function enviarParaSheets(dados) {
 
 function aceitarEstimativa(comDesconto) {
   limparRascunho();
+  registrarConversaoOrcamentoAceito();
   decisaoTomada = true;
   pararTimerInatividade();
 

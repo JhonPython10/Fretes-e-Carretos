@@ -1766,6 +1766,11 @@ function montarResumoParaWhatsApp(status, valorTexto) {
     `📦 ${textoItens}`,
     `👷 ${textoAjudantes}`,
     `🛣️ Pedágio: ${textoPedagio}`,
+    ...(status.startsWith('Não')
+      ? []
+      : [
+          'ℹ️ Estimativa para 1 viagem. Mais viagens, domingo, feriado e horário noturno podem alterar o valor, confirmado por você (prestador).',
+        ]),
     ...(observacoes ? [`📝 Obs: ${observacoes}`] : []),
   ].join('\n');
 }

@@ -599,3 +599,35 @@ input[type='number'] {
   background: #fff1f0;
   border-left-color: #b42318;
 }
+
+.apresentacao {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f1f5f8;
+}
+
+.apresentacao-foto {
+  flex-shrink: 0;
+  width: 96px;
+  height: 128px;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 10px;
+}
+
+.apresentacao-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #555555;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.apresentacao-texto strong {
+  color: #173b57;
+  font-size: 16px;
+}

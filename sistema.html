@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Fretes V5</title>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1000px;
+        margin: auto;
+        padding: 20px;
+        background: #f5f7fa;
+        color: #333;
+      }
+      input,
+      select,
+      button,
+      textarea {
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 1px solid #d0d7de;
+        font-size: 14px;
+      }
+      .card {
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        margin: 10px 0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+      .painel {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 15px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      /* Ajuste para o Painel em Grid/Flex para ser responsivo */
+      .painel-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .painel-item {
+        flex: 1 1 200px;
+        padding: 15px;
+        border-radius: 10px;
+        min-width: 150px;
+      }
+
+      button {
+        background: #1976d2;
+        color: white;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.2s;
+        margin-bottom: 5px;
+      }
+
+      button:hover {
+        background: #1565c0;
+        transform: translateY(-1px);
+      }
+
+      h1 {
+        text-align: center;
+        color: #1976d2;
+        margin-bottom: 30px;
+      }
+
+      h3 {
+        margin-top: 0;
+        color: #1976d2;
+      }
+
+      #resultado {
+        background: #e8f5e9;
+        padding: 15px;
+        border-radius: 12px;
+        margin-top: 15px;
+        border-left: 5px solid #4caf50;
+      }
+
+      .btn-excluir {
+        background: #d32f2f;
+      }
+      .btn-excluir:hover {
+        background: #b71c1c;
+      }
+
+      @media (max-width: 700px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        body {
+          padding: 10px;
+        }
+        .painel-item {
+          flex: 1 1 100%;
+        }
+      }
+
+      /* Remover setas de campos numéricos */
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        appearance: none; /* Adicione esta linha */
+        margin: 0;
+      }
+      input[type='number'] {
+        -moz-appearance: textfield;
+        appearance: textfield; /* Adicione esta linha também */
+      }
+
+      /* Container dos Botões Flutuantes */
+      .nav-flutuante {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1000;
+      }
+      .btn-nav {
+        width: 50px;
+        height: 50px;
+        background-color: #1976d2;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+        border: none;
+        font-size: 20px;
+      }
+      .btn-nav:hover {
+        background-color: #1565c0;
+      }
+
+      .assistente-carga {
+        background: #fff3e0;
+        padding: 15px;
+        border-radius: 12px;
+        margin-top: 10px;
+        border: 1px solid #ffe0b2;
+        display: none; /* Começa escondido */
+      }
+      .item-selecionado {
+        display: flex;
+        justify-content: space-between;
+        background: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Sistema de Fretes V5</h1>
+
+    <div class="grid">
+      <div>
+        <label><b>Cliente</b></label>
+        <input id="cliente" placeholder="Nome do cliente" />
+
+        <label><b>Telefone</b></label>
+        <input id="telefone" placeholder="(00) 00000-0000" />
+
+        <label><b>Status</b></label>
+        <select id="status">
+          <option value="Em Aberto">Em Aberto</option>
+          <option value="Fechado">Fechado</option>
+          <option value="Perdido">Perdido</option>
+          <option value="Cancelado">Cancelado</option>
+          <option value="Compromisso">Compromisso (agenda, sem valor)</option>
+        </select>
+
+        <label><b>Como chegou</b></label>
+        <select id="canal">
+          <option value="">Não informado</option>
+          <option value="Google">Google</option>
+          <option value="WhatsApp">WhatsApp</option>
+          <option value="Indicação">Indicação</option>
+          <option value="Cliente antigo">Cliente antigo</option>
+          <option value="Outro">Outro</option>
+        </select>
+
+        <label><b>Data do Serviço</b></label>
+        <input type="date" id="dataServico" />
+
+        <label><b>Origem</b></label>
+        <input id="origem" placeholder="Cidade/Bairro de origem" />
+
+        <label><b>Destino</b></label>
+        <input id="destino" placeholder="Cidade/Bairro de destino" />
+
+        <label><b>KM</b></label>
+        <input type="number" id="km" step="0.01" placeholder="0.00" />
+
+        <label><b>Trânsito (h)</b></label>
+        <input type="number" id="transito" step="0.01" placeholder="0.00" />
+
+        <label><b>Carga/Descarga (h)</b></label>
+        <div style="display: flex; gap: 5px">
+          <input type="number" id="carga" step="0.01" placeholder="0.00" />
+          <button
+            onclick="toggleAssistente()"
+            style="width: 50px; margin-top: 5px"
+            title="Assistente de Carga"
+          >
+            💡
+          </button>
+        </div>
+
+        <div id="areaAssistente" class="assistente-carga">
+          <small><b>Assistente de Carga</b></small>
+
+          <select id="selItem" onchange="adicionarItemAssistente()">
+            <option value="">+ Adicionar Item...</option>
+          </select>
+
+          <div style="margin-top: 5px">
+            <button
+              onclick="abrirCadastroItem()"
+              style="
+                font-size: 11px;
+                background: #666;
+                padding: 6px;
+                width: auto;
+              "
+            >
+              ➕ Cadastrar Novo Item
+            </button>
+          </div>
+
+          <!-- FORMULÁRIO COM DICAS (PLACEHOLDERS) -->
+          <div
+            id="formNovoItem"
+            style="
+              display: none;
+              margin-top: 10px;
+              border: 1px dashed #666;
+              padding: 10px;
+              background: #fff;
+            "
+          >
+            <input
+              id="novoNome"
+              placeholder="Ex: Geladeira, Cama..."
+              style="font-size: 12px; height: 30px; margin-bottom: 5px"
+            />
+            <input
+              id="novoTempo"
+              type="number"
+              placeholder="Minutos p/ carregar"
+              style="font-size: 12px; height: 30px; margin-bottom: 5px"
+            />
+
+            <label><small>Logística de Viagem:</small></label>
+            <select
+              id="novoTipo"
+              style="font-size: 12px; height: 30px; margin-bottom: 5px"
+            >
+              <option value="1">1 Viagem por Item (Itens Grandes)</option>
+              <option value="2">2 Itens por Viagem (Ex: Caixas)</option>
+              <option value="4">4 Itens por Viagem (Ex: Sacolas)</option>
+            </select>
+            <button
+              onclick="salvarNovoItem()"
+              style="background: #2e7d32; margin-top: 5px; padding: 5px"
+            >
+              💾 Salvar Item
+            </button>
+          </div>
+
+          <div id="listaItensAssistente" style="margin: 10px 0"></div>
+
+          <!-- CONFIGURAÇÃO DE ESCADA (COM SUPORTE A 1.5, 2.5, ETC) -->
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              margin-top: 10px;
+              border-top: 1px solid #ffe0b2;
+              padding-top: 10px;
+            "
+          >
+            <div style="flex: 1">
+              <label><small>Lances</small></label>
+              <input
+                type="number"
+                id="lancesEscada"
+                value="0"
+                oninput="calcularTempoAssistente()"
+              />
+            </div>
+            <div style="flex: 1">
+              <label><small>Min/Lance</small></label>
+              <input
+                type="number"
+                id="minutosPorLance"
+                step="0.1"
+                value="1.7"
+                oninput="calcularTempoAssistente()"
+              />
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 10px;
+              font-weight: bold;
+              font-size: 14px;
+              color: #e65100;
+            "
+          >
+            Total Estimado: <span id="tempoEstimadoAssistente">0</span> min
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label><b>Hora Pai (R$)</b></label>
+        <input type="number" id="horaPai" value="40" />
+
+        <label><b>Hora Jhon (R$)</b></label>
+        <input type="number" id="horaJhon" value="35" />
+
+        <label><b>Ajudantes (Qtd)</b></label>
+        <input type="number" id="ajudantes" value="0" />
+
+        <label><b>Valor por Ajudante (R$)</b></label>
+        <input type="number" id="valorAjudante" value="0" />
+
+        <label><b>Você como ajudante (R$)</b></label>
+        <input
+          type="number"
+          id="ajudanteJhon"
+          value="0"
+          placeholder="Quanto do valor de ajudantes fica com você"
+        />
+        <small style="color: #666"
+          >Preencha só quando você trabalhar como ajudante.</small
+        >
+
+        <label><b>Margem de Negociação (R$)</b></label>
+        <input type="number" id="margem" value="0" />
+
+        <label><b>Custos Adicionais (R$)</b></label>
+        <input type="number" id="custosAdicionais" value="0" />
+
+        <div
+          style="
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #d0d7de;
+          "
+        >
+          <h3>Ações</h3>
+          <button onclick="calcular()">⚡ Calcular Orçamento</button>
+          <button onclick="salvar()" style="background: #2e7d32">
+            💾 Salvar Registro
+          </button>
+          <hr />
+          <button onclick="exportarBackup()" style="background: #455a64">
+            📤 Fazer Backup (JSON)
+          </button>
+          <button
+            onclick="document.getElementById('arquivoBackup').click()"
+            style="background: #455a64"
+          >
+            📥 Restaurar Backup
+          </button>
+          <input
+            type="file"
+            id="arquivoBackup"
+            accept=".json"
+            onchange="restaurarBackup(event)"
+            style="display: none"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div id="resultado"></div>
+
+    <div class="painel">
+      <h3>Gerador de Mensagem WhatsApp</h3>
+      <label>Margem Comercial Adicional (R$)</label>
+      <input type="number" id="margemMensagem" value="30" />
+
+      <textarea
+        id="mensagemWhatsapp"
+        rows="8"
+        placeholder="A mensagem aparecerá aqui após calcular..."
+      ></textarea>
+      <button onclick="copiarMensagem()" style="background: #25d366">
+        📋 Copiar para WhatsApp
+      </button>
+    </div>
+
+    <div class="painel">
+      <h3>Painel Financeiro (Somente Fechados)</h3>
+      <div class="grid" style="margin-bottom: 15px">
+        <div>
+          <label>Início Período</label>
+          <input type="date" id="dataFinInicial" onchange="listar()" />
+        </div>
+        <div>
+          <label>Fim Período</label>
+          <input type="date" id="dataFinFinal" onchange="listar()" />
+        </div>
+      </div>
+      <div id="painel"></div>
+    </div>
+
+    <div class="painel">
+      <h3>Agenda Operacional (Próximos Serviços)</h3>
+      <div style="display: flex; gap: 10px; margin-bottom: 10px">
+        <button onclick="mostrarHistorico()" style="background: #7b1fa2">
+          📜 Ver Histórico Passado
+        </button>
+        <button
+          id="btnVoltarAgenda"
+          onclick="listar()"
+          style="display: none; background: #1976d2"
+        >
+          ⬅ Voltar para Agenda
+        </button>
+      </div>
+      <div id="agenda"></div>
+    </div>
+
+    <div class="painel">
+      <h3>Filtros e Pesquisa</h3>
+      <div class="grid">
+        <div>
+          <label>Pesquisar Cliente/Tel</label>
+          <input
+            id="pesquisa"
+            onkeyup="listar()"
+            placeholder="Digite para buscar..."
+          />
+        </div>
+        <div>
+          <label>Filtrar Status</label>
+          <select id="filtro" onchange="listar()">
+            <option value="Todos">Todos</option>
+            <option value="Em Aberto">Em Aberto</option>
+            <option value="Fechado">Fechado</option>
+            <option value="Perdido">Perdido</option>
+            <option value="Cancelado">Cancelado</option>
+            <option value="Compromisso">Compromisso</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid" style="margin-top: 10px">
+        <div>
+          <label>Criação De:</label>
+          <input type="date" id="dataInicial" onchange="listar()" />
+        </div>
+        <div>
+          <label>Criação Até:</label>
+          <input type="date" id="dataFinal" onchange="listar()" />
+        </div>
+      </div>
+    </div>
+
+    <h2 id="totalFiltrado" style="text-align: center; color: #1976d2">
+      Total: R$ 0,00
+    </h2>
+
+    <div id="lista"></div>
+
+    <script>
+      let editando = null;
+      let ultimo = {};
+
+      const el = (id) => document.getElementById(id);
+
+      // ===== ID FIXO E LEITURA DA LISTA =====
+      // Cada registro ganha um código único que nunca muda.
+      // Editar e excluir passam a usar esse código, e não a posição na lista.
+      let contadorId = 0;
+      function novoId() {
+        contadorId++;
+        return (
+          'F' +
+          Date.now().toString(36) +
+          contadorId.toString(36) +
+          Math.random().toString(36).slice(2, 5)
+        );
+      }
+
+      function lerLista() {
+        let lista = JSON.parse(localStorage.getItem('orcamentosV3') || '[]');
+        let mudou = false;
+        lista.forEach((o) => {
+          if (!o.id) {
+            o.id = novoId();
+            mudou = true;
+          }
+        });
+        if (mudou) localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        return lista;
+      }
+
+      function num(v) {
+        return parseFloat(v) || 0;
+      }
+
+      const CORES_STATUS = {
+        Fechado: '#4caf50',
+        Perdido: '#f44336',
+        Cancelado: '#757575',
+        Compromisso: '#7b1fa2',
+        'Em Aberto': '#1976d2',
+      };
+
+      // ===== CÁLCULO =====
+      function calcular() {
+        let km = parseFloat(el('km').value) || 0;
+        let trans = parseFloat(el('transito').value) || 0;
+        let carg = parseFloat(el('carga').value) || 0;
+
+        let pai = parseFloat(el('horaPai').value) || 0;
+        let jhon = parseFloat(el('horaJhon').value) || 0;
+
+        let aj = parseInt(el('ajudantes').value) || 0;
+        let vAj = parseFloat(el('valorAjudante').value) || 0;
+
+        let margemV = parseFloat(el('margem').value) || 0;
+
+        let custosExtras = parseFloat(el('custosAdicionais').value) || 0;
+
+        let tempoReal = trans + carg;
+        let horaTotal = pai + jhon;
+        let tempoMargem = horaTotal ? margemV / horaTotal : 0;
+        let tempoOrc = tempoReal + tempoMargem;
+
+        let custoCarro = km * 1.77;
+        let partePai = tempoOrc * pai;
+        let parteJhon = tempoOrc * jhon;
+        let custoAjud = aj * vAj;
+
+        let valor =
+          custoCarro + partePai + parteJhon + custoAjud + custosExtras;
+
+        ultimo = {
+          valor,
+          partePai,
+          parteJhon,
+          custoCarro,
+          custoAjud,
+          origem: el('origem').value,
+          destino: el('destino').value,
+          cliente: el('cliente').value,
+          codigo: `${km.toFixed(0)}-${tempoOrc.toFixed(2)}`,
+        };
+
+        el('resultado').innerHTML = `
+          <h3>Orçamento Gerado: ${ultimo.codigo}</h3>
+          <p>Valor Final Sugerido: <b>R$ ${valor.toFixed(2)}</b></p>
+          <div style="font-size: 0.9em; color: #666;">
+            <span>Pai: R$ ${partePai.toFixed(2)}</span> | 
+            <span>Jhon: R$ ${parteJhon.toFixed(2)}</span> | 
+            <span>Ajudantes: R$ ${custoAjud.toFixed(2)}</span>
+          </div>
+        `;
+
+        let margemMsg = parseFloat(el('margemMensagem').value) || 0;
+        let valorCheio = valor + margemMsg;
+
+        el('mensagemWhatsapp').value =
+          `${ultimo.cliente}, agradeço pelo contato! 😊\n\n` +
+          `📍 ${ultimo.origem || 'Origem'} → ${ultimo.destino || 'Destino'}\n\n` +
+          `Orçamento: ${ultimo.codigo}\n\n` +
+          `💰 O frete fica em R$ ${valorCheio.toFixed(2)}\n\n` +
+          `*Consigo fazer por R$ ${valor.toFixed(2)} pra fecharmos hoje* 🤝\n\n` +
+          `👉 Apenas transporte, sem carga e descarga.\n\n` +
+          `Formas de pagamento:\n` +
+          `PIX, crédito à vista ou parcelado por aproximação.(+ taxas)`;
+      }
+
+      // ===== SALVAR =====
+      function salvar() {
+        if (!el('cliente').value) {
+          alert('Por favor, preencha pelo menos o nome do cliente.');
+          return;
+        }
+
+        calcular();
+
+        let lista = lerLista();
+        let posicao =
+          editando !== null ? lista.findIndex((o) => o.id === editando) : -1;
+
+        let obj = {
+          id: posicao >= 0 ? editando : novoId(),
+          cliente: el('cliente').value || '',
+          telefone: el('telefone').value || '',
+          status: el('status').value || 'Em Aberto',
+          canal: el('canal').value || '',
+          origem: el('origem').value || '',
+          destino: el('destino').value || '',
+          dataServico: el('dataServico').value || '',
+          dataCriacao:
+            posicao >= 0
+              ? lista[posicao].dataCriacao
+              : new Date().toLocaleDateString('pt-BR'),
+          ajudanteJhon: el('ajudanteJhon').value || '0',
+          km: el('km').value,
+          transito: el('transito').value,
+          carga: el('carga').value,
+          horaPai: el('horaPai').value,
+          horaJhon: el('horaJhon').value,
+          ajudantes: el('ajudantes').value,
+          valorAjudante: el('valorAjudante').value,
+          margem: el('margem').value,
+          custosAdicionais: el('custosAdicionais').value,
+          ...ultimo,
+        };
+
+        if (posicao >= 0) {
+          lista[posicao] = obj;
+        } else {
+          lista.push(obj);
+        }
+        editando = null;
+
+        localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        listar();
+        alert('Registro salvo com sucesso!');
+
+        // Limpar campos após salvar (opcional)
+        // el('cliente').value = '';
+        // el('telefone').value = '';
+      }
+
+      // ===== LISTAR (ORGANIZADA EM ETAPAS) =====
+      function listar() {
+        let listaDados = lerLista();
+        el('btnVoltarAgenda').style.display = 'none';
+
+        // 1. Variáveis de Controle e Filtros
+        let filtroStatus = el('filtro').value;
+        let busca = el('pesquisa').value.toLowerCase();
+        let dataIni = el('dataInicial').value;
+        let dataFim = el('dataFinal').value;
+        let dataFinInicial = el('dataFinInicial')?.value || '';
+        let dataFinFinal = el('dataFinFinal')?.value || '';
+
+        // 2. Acumuladores
+        let htmlLista = '';
+        let totalGeralFiltrado = 0;
+
+        // Financeiro (Somente Fechados no Período)
+        let fechadosTotal = 0;
+        let quantidadeFretes = 0;
+        let abertosTotal = 0;
+        let perdidosTotal = 0;
+        let comissaoPai = 0;
+        let comissaoJhon = 0;
+        let custoAjudantes = 0;
+        let custoCarroTotal = 0;
+        let ajudanteJhonTotal = 0;
+        let canceladosQtd = 0;
+
+        let servicosAgenda = [];
+
+        // 3. Processamento Principal (Loop Único para Eficiência)
+        listaDados.forEach((o, i) => {
+          // Filtros da Lista Principal
+          let atendeFiltro = true;
+          if (filtroStatus !== 'Todos' && o.status !== filtroStatus)
+            atendeFiltro = false;
+
+          if (dataIni && o.dataCriacao) {
+            let p = o.dataCriacao.split('/');
+            let d = `${p[2]}-${p[1]}-${p[0]}`;
+            if (d < dataIni) atendeFiltro = false;
+          }
+          if (dataFim && o.dataCriacao) {
+            let p = o.dataCriacao.split('/');
+            let d = `${p[2]}-${p[1]}-${p[0]}`;
+            if (d > dataFim) atendeFiltro = false;
+          }
+          if (
+            busca &&
+            !o.cliente.toLowerCase().includes(busca) &&
+            !o.telefone.toLowerCase().includes(busca)
+          )
+            atendeFiltro = false;
+
+          if (atendeFiltro) {
+            if (o.status !== 'Compromisso') totalGeralFiltrado += num(o.valor);
+            htmlLista += `
+              <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <b style="font-size:18px;">${o.cliente}</b><br>
+                    <small>${o.telefone || ''}${o.canal ? ' · ' + o.canal : ''}</small>
+                  </div>
+                  <div style="background:${CORES_STATUS[o.status] || '#1976d2'}; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:bold;">
+                    ${o.status}
+                  </div>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+                ${o.status === 'Compromisso' ? '' : `📍 ${o.origem || '-'} <br> ➡️ ${o.destino || '-'} <br>`}
+                <div style="margin-top:10px;">
+                  ${o.status === 'Compromisso' ? '🗓️' : `💰 <b>R$ ${num(o.valor).toFixed(2)}</b> |`} 📅 ${o.dataServico ? o.dataServico.split('-').reverse().join('/') : o.dataCriacao}
+                </div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                  <button onclick="editar('${o.id}')" style="flex:1;">Editar</button>
+                  <button onclick="excluirO('${o.id}')" class="btn-excluir" style="flex:1;">Excluir</button>
+                </div>
+              </div>
+            `;
+          }
+
+          // Compromissos: só agenda, fora do financeiro
+          if (o.status === 'Compromisso') {
+            if (o.dataServico) servicosAgenda.push(o);
+            return;
+          }
+
+          if (o.status === 'Cancelado') {
+            canceladosQtd++;
+            return;
+          }
+
+          // Cálculos Financeiros (Somente Fechados)
+          if (o.status === 'Fechado') {
+            // Para Agenda (Todos os futuros)
+            if (o.dataServico) servicosAgenda.push(o);
+
+            // Para o Painel Financeiro (Filtro de Data Específico)
+            let dentroDoPeriodo = true;
+            if (dataFinInicial && o.dataServico < dataFinInicial)
+              dentroDoPeriodo = false;
+            if (dataFinFinal && o.dataServico > dataFinFinal)
+              dentroDoPeriodo = false;
+
+            if (dentroDoPeriodo) {
+              fechadosTotal += o.valor || 0;
+              quantidadeFretes++;
+              comissaoPai += o.partePai || 0;
+              comissaoJhon += o.parteJhon || 0;
+              custoAjudantes += o.custoAjud || 0;
+              custoCarroTotal += o.custoCarro || 0;
+              ajudanteJhonTotal += num(o.ajudanteJhon);
+            }
+          } else if (o.status === 'Em Aberto') {
+            abertosTotal += o.valor || 0;
+          } else if (o.status === 'Perdido') {
+            perdidosTotal += o.valor || 0;
+          }
+        });
+
+        // 4. Cálculos Extras (Ticket Médio)
+        let ticketMedio =
+          quantidadeFretes > 0 ? fechadosTotal / quantidadeFretes : 0;
+
+        // 5. Montar HTML da Agenda
+        servicosAgenda.sort((a, b) =>
+          a.dataServico.localeCompare(b.dataServico),
+        );
+        let agendaHtml = '';
+        let dataAtual = '';
+        const hoje = new Date().toISOString().split('T')[0];
+
+        servicosAgenda.forEach((o) => {
+          if (o.dataServico < hoje) return;
+          if (o.dataServico !== dataAtual) {
+            dataAtual = o.dataServico;
+            // Conta quantos serviços tem para esta data específica
+            let qtdData = servicosAgenda.filter(
+              (s) => s.dataServico === o.dataServico,
+            ).length;
+
+            agendaHtml += `<h4 style="margin-top:15px; border-bottom: 2px solid #1976d2; display: inline-block;">
+              📅 ${o.dataServico.split('-').reverse().join('/')} 
+              <span style="font-size:14px; font-weight:normal; color:#666;">(${qtdData} ${qtdData > 1 ? 'serviços' : 'serviço'})</span>
+            </h4>`;
+          }
+
+          if (o.status === 'Compromisso') {
+            agendaHtml += `
+            <div class="card" style="border-left: 4px solid #7b1fa2; background:#f3e5f5;">
+              🗓️ <b>${o.cliente}</b>
+            </div>
+          `;
+          } else {
+            agendaHtml += `
+            <div class="card" style="border-left: 4px solid #1976d2;">
+              <b>${o.cliente}</b> | ${o.origem || '-'} ➡️ ${o.destino || '-'} | <b>R$ ${num(o.valor).toFixed(2)}</b>
+            </div>
+          `;
+          }
+        });
+
+        // 6. Renderizar na Tela
+        el('lista').innerHTML =
+          htmlLista ||
+          '<p style="text-align:center; color:#666;">Nenhum registro encontrado.</p>';
+        // Conta quantos itens estão no HTML da lista (contando as ocorrências da classe "card")
+        let qtdFiltrados = (htmlLista.match(/class="card"/g) || []).length;
+
+        el('totalFiltrado').innerHTML =
+          `Exibindo ${qtdFiltrados} registros | Total: R$ ${totalGeralFiltrado.toFixed(2)}`;
+
+        el('agenda').innerHTML =
+          agendaHtml || '<p>Nenhum serviço agendado para hoje ou futuro.</p>';
+
+        // Painel Financeiro
+        el('painel').innerHTML = `
+          <div class="painel-grid">
+            <div class="painel-item" style="background:#e8f5e9; border: 1px solid #c8e6c9; margin-bottom: 10px; padding: 15px; border-radius: 10px;">
+              <small>FECHADOS NO PERÍODO</small>  
+
+              <b style="font-size:22px; color:#2e7d32;">R$ ${fechadosTotal.toFixed(2)}</b> 
+              <span style="font-size:12px; color:#666;">(${quantidadeFretes} fretes)</span>
+            </div>
+            <div class="painel-item" style="background:#e3f2fd; border: 1px solid #bbdefb; margin-bottom: 10px; padding: 15px; border-radius: 10px;">
+              <small>TICKET MÉDIO</small>  
+
+              <b style="font-size:22px; color:#1565c0;">R$ ${ticketMedio.toFixed(2)}</b>
+            </div>
+                        <div class="painel-item" style="background:#fff8e1; border: 1px solid #ffecb3; margin-bottom: 15px; padding: 15px; border-radius: 10px;">
+              <small>EM ABERTO (TOTAL)</small>  
+
+              <b style="font-size:22px; color:#f57f17;">R$ ${abertosTotal.toFixed(2)}</b>
+              <span style="font-size:12px; color:#666;">(${listaDados.filter((o) => o.status === 'Em Aberto').length} orçamentos)</span>
+            </div>
+
+          </div>
+          
+          <div style="margin-top:20px; padding:20px; border: 1px solid #d0d7de; border-radius: 12px; background: #fcfcfc;">
+            <div style="margin-bottom: 20px;">
+                <span style="color: #555; font-size: 14px; font-weight: bold; text-transform: uppercase;">Total Repasse Pai (Comissão + Carro)</span>  
+
+                <b style="color: #d32f2f; font-size: 28px; display: block; margin-top: 5px;">R$ ${(comissaoPai + custoCarroTotal).toFixed(2)}</b>
+            </div>
+
+            <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <span style="color: #555; font-size: 14px; font-weight: bold; text-transform: uppercase;">Seu Ganho Bruto (Jhon)</span>
+
+                <b style="color: #2e7d32; font-size: 28px; display: block; margin-top: 5px;">R$ ${(comissaoJhon + ajudanteJhonTotal).toFixed(2)}</b>
+                <small style="color:#666;">Comissão: R$ ${comissaoJhon.toFixed(2)} · Como ajudante: R$ ${ajudanteJhonTotal.toFixed(2)}</small>
+            </div>
+
+            <div style="padding-top: 10px; border-top: 1px dashed #ccc; color: #666;">
+                <b>Ajudantes (outros):</b> R$ ${(custoAjudantes - ajudanteJhonTotal).toFixed(2)}
+                <br><b>Cancelados:</b> ${canceladosQtd}
+                <p style="font-size:11px; margin-top:10px;">
+                  Período: ${dataFinInicial || 'Início'} até ${dataFinFinal || 'Hoje'}
+                </p>
+            </div>
+          </div>
+        `;
+      }
+
+      // ===== EDITAR =====
+      function editar(id) {
+        let lista = lerLista();
+        let o = lista.find((x) => x.id === id);
+        if (!o) {
+          alert('Registro não encontrado. Atualize a página.');
+          return;
+        }
+
+        el('cliente').value = o.cliente;
+        el('telefone').value = o.telefone || '';
+        el('status').value = o.status;
+        el('canal').value = o.canal || '';
+        el('ajudanteJhon').value = o.ajudanteJhon || 0;
+        el('custosAdicionais').value = o.custosAdicionais || 0;
+        el('origem').value = o.origem || '';
+        el('destino').value = o.destino || '';
+        el('dataServico').value = o.dataServico || '';
+        el('km').value = o.km;
+        el('transito').value = o.transito;
+        el('carga').value = o.carga;
+        el('horaPai').value = o.horaPai;
+        el('horaJhon').value = o.horaJhon;
+        el('ajudantes').value = o.ajudantes;
+        el('valorAjudante').value = o.valorAjudante || o.horaAjudante || 0;
+        el('margem').value = o.margem;
+
+        editando = id;
+        calcular();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // ===== EXCLUIR =====
+      function excluirO(id) {
+        if (!confirm('Tem certeza que deseja excluir este registro?')) return;
+        let lista = lerLista().filter((o) => o.id !== id);
+        localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        if (editando === id) editando = null;
+        listar();
+      }
+
+      function copiarMensagem() {
+        let texto = el('mensagemWhatsapp').value;
+        if (!texto) {
+          alert('Calcule um orçamento primeiro!');
+          return;
+        }
+        navigator.clipboard
+          .writeText(texto)
+          .then(() => {
+            alert('Mensagem copiada para a área de transferência!');
+          })
+          .catch(() => {
+            alert('Erro ao copiar mensagem.');
+          });
+      }
+
+      function exportarBackup() {
+        let orcamentos = JSON.parse(
+          localStorage.getItem('orcamentosV3') || '[]',
+        );
+        let itens = JSON.parse(localStorage.getItem('dbItensFretes') || '{}');
+
+        // Criamos um objeto único com tudo dentro
+        let backupCompleto = {
+          dataBackup: new Date().toISOString(),
+          orcamentos: orcamentos,
+          itens: itens,
+        };
+
+        let blob = new Blob([JSON.stringify(backupCompleto)], {
+          type: 'application/json',
+        });
+        let link = document.createElement('a');
+        let data = new Date();
+
+        let nome =
+          'backup-total-fretes-' + data.toISOString().split('T')[0] + '.json';
+
+        link.href = URL.createObjectURL(blob);
+        link.download = nome;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+
+      function restaurarBackup(event) {
+        let arquivo = event.target.files[0];
+        if (!arquivo) return;
+
+        let leitor = new FileReader();
+        leitor.onload = function (e) {
+          try {
+            let dados = JSON.parse(e.target.result);
+
+            if (
+              !confirm(
+                'Atenção: Isso substituirá todos os orçamentos e itens atuais. Continuar?',
+              )
+            )
+              return;
+
+            // Lógica Inteligente: Verifica se é o novo formato ou o antigo
+            if (dados.orcamentos && Array.isArray(dados.orcamentos)) {
+              // NOVO FORMATO (Unificado)
+              localStorage.setItem(
+                'orcamentosV3',
+                JSON.stringify(dados.orcamentos),
+              );
+
+              if (dados.itens && Object.keys(dados.itens).length > 0) {
+                localStorage.setItem(
+                  'dbItensFretes',
+                  JSON.stringify(dados.itens),
+                );
+                dbItens = dados.itens; // Atualiza a lista na memória
+              }
+            } else if (Array.isArray(dados)) {
+              // FORMATO ANTIGO (Apenas orçamentos)
+              localStorage.setItem('orcamentosV3', JSON.stringify(dados));
+              alert(
+                'Backup antigo detectado. Orçamentos restaurados, mas a lista de itens permaneceu a mesma.',
+              );
+            } else {
+              throw new Error('Formato inválido');
+            }
+
+            // Atualiza tudo na tela
+            listar();
+            if (typeof atualizarSelectItens === 'function')
+              atualizarSelectItens();
+
+            alert('Backup TOTAL restaurado com sucesso!');
+          } catch (err) {
+            alert('Erro: O arquivo de backup é inválido ou está corrompido.');
+          }
+        };
+        leitor.readAsText(arquivo);
+      }
+
+      function mostrarHistorico() {
+        let lista = lerLista();
+        let hoje = new Date().toISOString().split('T')[0];
+        let dataIni = el('dataFinInicial')?.value || '';
+        let dataFim = el('dataFinFinal')?.value || '';
+
+        let historico = lista.filter((o) => {
+          if (o.status !== 'Fechado' || !o.dataServico || o.dataServico >= hoje)
+            return false;
+          if (dataIni && o.dataServico < dataIni) return false;
+          if (dataFim && o.dataServico > dataFim) return false;
+          return true;
+        });
+
+        historico.sort((a, b) => b.dataServico.localeCompare(a.dataServico));
+        let totalHist = historico.reduce((sum, o) => sum + num(o.valor), 0);
+
+        let html = `
+          <div style="background:#f0f0f0; padding:15px; border-radius:10px; margin-bottom:15px;">
+            <h4>📜 Histórico de Serviços Concluídos</h4>
+            <p>Qtd: ${historico.length} | Total: <b>R$ ${totalHist.toFixed(2)}</b></p>
+          </div>
+        `;
+
+        if (historico.length === 0) {
+          html += '<p>Nenhum serviço passado encontrado no período.</p>';
+        } else {
+          historico.forEach((o) => {
+            html += `
+              <div class="card" style="border-left: 4px solid #7b1fa2;">
+                <b>${o.cliente}</b> | ${o.dataServico.split('-').reverse().join('/')} | <b>R$ ${num(o.valor).toFixed(2)}</b><br>
+                <small>${o.origem} ➡️ ${o.destino}</small>
+              </div>
+            `;
+          });
+        }
+
+        el('agenda').innerHTML = html;
+        el('btnVoltarAgenda').style.display = 'block';
+      }
+
+      // Dados base (Tempo em minutos para térreo)
+      // Carrega itens do banco ou usa os padrões se estiver vazio
+      let dbItens = JSON.parse(localStorage.getItem('dbItensFretes') || '{}');
+
+      if (Object.keys(dbItens).length === 0) {
+        dbItens = {
+          geladeira: { nome: 'Geladeira', tempo: 10, viagens: 1 },
+          sofa: { nome: 'Sofá', tempo: 15, viagens: 1 },
+          caixas: { nome: 'Caixas', tempo: 5, divisor: 2 },
+          sacolas: { nome: 'Sacolas', tempo: 5, divisor: 4 },
+          unitario: { nome: 'Item Avulso', tempo: 5, viagens: 1 },
+        };
+        localStorage.setItem('dbItensFretes', JSON.stringify(dbItens));
+      }
+
+      function atualizarSelectItens() {
+        let html = '<option value="">+ Adicionar Item...</option>';
+        for (let id in dbItens) {
+          html += `<option value="${id}">${dbItens[id].nome} (${dbItens[id].tempo} min)</option>`;
+        }
+        el('selItem').innerHTML = html;
+      }
+
+      // Chama a função para popular o select assim que o código rodar
+      atualizarSelectItens();
+
+      let itensNoOrcamento = [];
+
+      function toggleAssistente() {
+        const area = el('areaAssistente');
+        area.style.display = area.style.display === 'block' ? 'none' : 'block';
+      }
+
+      function adicionarItemAssistente() {
+        const id = el('selItem').value;
+        if (!id) return;
+        itensNoOrcamento.push(id);
+        el('selItem').value = '';
+        renderizarItensAssistente();
+      }
+
+      function renderizarItensAssistente() {
+        let html = '';
+        itensNoOrcamento.forEach((id, index) => {
+          const item = dbItens[id];
+          if (!item) return;
+          html += `<div class="item-selecionado" style="display: flex; align-items: center; gap: 5px; margin-bottom: 8px; background: #fff; padding: 8px; border-radius: 8px; border: 1px solid #ddd;">
+            <span style="flex: 1;"><b>${item.nome}</b></span>
+            <button onclick="preencherEdicaoItem('${id}')" style="width: 35px; padding: 5px; background: #fb8c00; margin: 0; font-size: 14px; border:none; border-radius:4px; color:white;">✏️</button>
+            <button onclick="excluirItemCadastrado('${id}')" style="width: 35px; padding: 5px; background: #d32f2f; margin: 0; font-size: 14px; border:none; border-radius:4px; color:white;">✖</button>
+            <button onclick="removerItemAssistente(${index})" style="width: 35px; padding: 5px; background: #666; margin: 0; font-size: 14px; border:none; border-radius:4px; color:white;" title="Remover do orçamento">🗑️</button>
+          </div>`;
+        });
+        el('listaItensAssistente').innerHTML = html;
+        calcularTempoAssistente();
+      }
+
+      function removerItemAssistente(index) {
+        itensNoOrcamento.splice(index, 1);
+        renderizarItensAssistente();
+      }
+
+      function abrirCadastroItem() {
+        const form = el('formNovoItem');
+        form.style.display = form.style.display === 'block' ? 'none' : 'block';
+      }
+
+      function preencherEdicaoItem(id) {
+        const item = dbItens[id];
+        el('novoNome').value = item.nome;
+        el('novoTempo').value = item.tempo;
+        el('novoTipo').value = item.divisor || 1;
+        el('formNovoItem').style.display = 'block';
+        // Removido o scroll automático para não pular a tela
+      }
+
+      function excluirItemCadastrado(id) {
+        if (
+          confirm(`Excluir "${dbItens[id].nome}" permanentemente do sistema?`)
+        ) {
+          delete dbItens[id];
+          localStorage.setItem('dbItensFretes', JSON.stringify(dbItens));
+          atualizarSelectItens();
+          renderizarItensAssistente();
+        }
+      }
+
+      function calcularTempoAssistente() {
+        let tempoTotalMin = 0;
+        let totalViagens = 0;
+        let contagem = {};
+
+        itensNoOrcamento.forEach(
+          (id) => (contagem[id] = (contagem[id] || 0) + 1),
+        );
+
+        for (let id in contagem) {
+          const item = dbItens[id];
+          if (!item) continue;
+          let viagensDoItem = item.divisor
+            ? Math.ceil(contagem[id] / item.divisor)
+            : contagem[id];
+          tempoTotalMin += viagensDoItem * item.tempo;
+          totalViagens += viagensDoItem;
+        }
+
+        // CÁLCULO DA ESCADA COM MULTIPLICADOR MANUAL
+        // Agora usando parseFloat para aceitar números decimais (ex: 1.5)
+        const lances = parseFloat(el('lancesEscada').value) || 0;
+        const minPorLance = parseFloat(el('minutosPorLance').value) || 0;
+        tempoTotalMin += totalViagens * lances * minPorLance;
+
+        el('tempoEstimadoAssistente').innerText = tempoTotalMin;
+        el('carga').value = (tempoTotalMin / 60).toFixed(2);
+        if (typeof calcular === 'function') calcular();
+      }
+
+      // --- GERENCIAMENTO DINÂMICO DE ITENS ---
+      function abrirCadastroItem() {
+        const form = el('formNovoItem');
+        form.style.display = form.style.display === 'block' ? 'none' : 'block';
+      }
+
+      function salvarNovoItem() {
+        const nome = el('novoNome').value;
+        const tempo = parseInt(el('novoTempo').value);
+        const div = parseInt(el('novoTipo').value);
+
+        if (!nome || !tempo) return alert('Preencha nome e tempo!');
+
+        const id = nome.toLowerCase().trim().replace(/\s+/g, '_');
+
+        // Carrega o banco atual antes de salvar
+        let dbAtual = JSON.parse(localStorage.getItem('dbItensFretes') || '{}');
+
+        dbAtual[id] = {
+          nome: nome,
+          tempo: tempo,
+          divisor: div > 1 ? div : null,
+          viagens: div === 1 ? 1 : null,
+        };
+
+        localStorage.setItem('dbItensFretes', JSON.stringify(dbAtual));
+        dbItens = dbAtual; // Atualiza a variável global
+
+        atualizarSelectItens();
+        abrirCadastroItem();
+        el('novoNome').value = '';
+        el('novoTempo').value = '';
+        alert('Item cadastrado com sucesso!');
+      }
+
+      function preencherEdicaoPeloMenu() {
+        const id = el('selItem').value;
+        if (!id) return alert('Selecione um item no menu acima primeiro!');
+        const item = dbItens[id];
+        el('novoNome').value = item.nome;
+        el('novoTempo').value = item.tempo;
+        el('novoTipo').value = item.divisor || 1;
+        el('formNovoItem').style.display = 'block';
+      }
+
+      function excluirPeloMenu() {
+        const id = el('selItem').value;
+        if (!id) return alert('Selecione um item no menu acima primeiro!');
+        if (confirm(`Excluir "${dbItens[id].nome}" permanentemente?`)) {
+          delete dbItens[id];
+          localStorage.setItem('dbItensFretes', JSON.stringify(dbItens));
+          atualizarSelectItens();
+        }
+      }
+
+      // Ajuste na função de adicionar para não dar erro ao gerenciar
+      const originalAdicionar = adicionarItemAssistente;
+      adicionarItemAssistente = function () {
+        const id = el('selItem').value;
+        if (!id) return;
+        // Se o formulário de edição estiver aberto, não adiciona ao orçamento
+        if (el('formNovoItem').style.display === 'block') return;
+        originalAdicionar();
+      };
+
+      // ---------------------------------------
+
+      // Bloquear alteração de valor no scroll do mouse
+      document.addEventListener('wheel', function (event) {
+        if (document.activeElement.type === 'number') {
+          document.activeElement.blur();
+        }
+      });
+
+      // Inicialização
+      listar();
+    </script>
+
+    <!-- Botões de Navegação Flutuante -->
+    <div class="nav-flutuante">
+      <button
+        class="btn-nav"
+        onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+        title="Ir para o topo"
+      >
+        ⬆️
+      </button>
+      <button
+        class="btn-nav"
+        onclick="
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth',
+          })
+        "
+        title="Ir para o final"
+      >
+        ⬇️
+      </button>
+    </div>
+  </body>
+</html>

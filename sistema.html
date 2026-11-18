@@ -174,6 +174,7 @@
 
   <body>
     <h1>Sistema de Fretes V5</h1>
+    <div id="avisoFila" style="text-align: center; margin: -20px 0 15px; font-size: 13px; color: #666"></div>
 
     <div class="grid">
       <div>
@@ -389,6 +390,9 @@
             style="background: #455a64"
           >
             📥 Restaurar Backup
+          </button>
+          <button onclick="enviarHistorico()" style="background: #00796b">
+            ☁️ Enviar histórico para a planilha (01/10 em diante)
           </button>
           <input
             type="file"
@@ -649,6 +653,7 @@
 
         localStorage.setItem('orcamentosV3', JSON.stringify(lista));
         listar();
+        enfileirar([obj]);
         alert('Registro salvo com sucesso!');
 
         // Limpar campos após salvar (opcional)
@@ -914,8 +919,12 @@
       // ===== EXCLUIR =====
       function excluirO(id) {
         if (!confirm('Tem certeza que deseja excluir este registro?')) return;
-        let lista = lerLista().filter((o) => o.id !== id);
+        let todos = lerLista();
+        let removido = todos.find((o) => o.id === id);
+        let lista = todos.filter((o) => o.id !== id);
         localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        // na planilha a linha não é apagada: fica marcada como Excluído
+        if (removido) enfileirar([{ ...removido, status: 'Excluído' }]);
         if (editando === id) editando = null;
         listar();
       }
@@ -1250,8 +1259,102 @@
         }
       });
 
+      // ===== ENVIO PARA A PLANILHA (aba Registro) =====
+      // Cada frete salvo entra numa fila guardada no celular.
+      // A fila é enviada ao Apps Script; só sai da fila o que a planilha confirmou.
+      // Sem internet, fica esperando e é enviada na próxima abertura ou quando o sinal volta.
+      const URL_APPS_SCRIPT =
+        'https://script.google.com/macros/s/AKfycbwrESYmjJmgWtnxG1y73X2Bah-oMSmjSkidjrPlRrw_Hg1_O8J-cbaP-9XU8FfB86gy/exec';
+      const CHAVE_FILA = 'filaPlanilha';
+      let enviandoFila = false;
+
+      function lerFila() {
+        try {
+          return JSON.parse(localStorage.getItem(CHAVE_FILA) || '[]');
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function salvarFila(fila) {
+        localStorage.setItem(CHAVE_FILA, JSON.stringify(fila));
+      }
+
+      function enfileirar(registros) {
+        let fila = lerFila();
+        registros.forEach((r) => {
+          // se o mesmo frete já estava na fila, fica só a versão mais nova
+          fila = fila.filter((x) => x.id !== r.id);
+          fila.push({ ...r, _versao: Date.now() + Math.random() });
+        });
+        salvarFila(fila);
+        enviarFila();
+      }
+
+      function atualizarAvisoFila(erro) {
+        const qtd = lerFila().length;
+        const aviso = el('avisoFila');
+        if (!aviso) return;
+        if (qtd === 0) {
+          aviso.innerHTML = '☁️ Planilha em dia';
+        } else {
+          aviso.innerHTML =
+            `☁️ ${qtd} ${qtd === 1 ? 'pendente' : 'pendentes'}` +
+            (enviandoFila ? ' · enviando...' : erro ? ' · sem conexão' : '') +
+            (enviandoFila
+              ? ''
+              : ' · <a href="#" onclick="enviarFila();return false;">tentar agora</a>');
+        }
+      }
+
+      async function enviarFila() {
+        if (enviandoFila) return;
+        enviandoFila = true;
+        atualizarAvisoFila();
+        let erro = false;
+        try {
+          while (lerFila().length > 0) {
+            const lote = lerFila().slice(0, 40);
+            const resp = await fetch(URL_APPS_SCRIPT, {
+              method: 'POST',
+              body: JSON.stringify({ tipo: 'registro', registros: lote }),
+            });
+            const resultado = await resp.json();
+            if (!resultado.success) throw new Error(resultado.message);
+            // tira da fila só o que foi enviado (se editou de novo no meio, a versão nova fica)
+            const enviados = new Set(lote.map((r) => r.id + '|' + r._versao));
+            salvarFila(lerFila().filter((r) => !enviados.has(r.id + '|' + r._versao)));
+          }
+        } catch (e) {
+          erro = true;
+          console.error('Envio para a planilha falhou:', e);
+        } finally {
+          enviandoFila = false;
+          atualizarAvisoFila(erro);
+        }
+      }
+
+      function enviarHistorico() {
+        const lista = lerLista().filter((o) => {
+          if (o.dataServico && o.dataServico >= '2026-10-01') return true;
+          const p = (o.dataCriacao || '').split('/');
+          return p.length === 3 && `${p[2]}-${p[1]}-${p[0]}` >= '2026-10-01';
+        });
+        if (
+          !confirm(
+            `Enviar ${lista.length} registros (de 01/10/2026 em diante) para a planilha? ` +
+              'Pode repetir sem medo: registros já enviados são atualizados, não duplicados.',
+          )
+        )
+          return;
+        enfileirar(lista);
+      }
+
+      window.addEventListener('online', enviarFila);
+
       // Inicialização
       listar();
+      enviarFila();
     </script>
 
     <!-- Botões de Navegação Flutuante -->

@@ -176,6 +176,92 @@
     <h1>Sistema de Fretes V5</h1>
     <div id="avisoFila" style="text-align: center; margin: -20px 0 15px; font-size: 13px; color: #666"></div>
 
+    <!-- ===== ORÇAMENTO RÁPIDO (resumo da IA do WhatsApp) ===== -->
+    <details class="painel" id="orcRapido" style="border: 2px solid #1976d2">
+      <summary style="cursor: pointer; font-weight: bold; color: #1976d2; font-size: 17px">
+        ⚡ Orçamento rápido (colar resumo da IA)
+      </summary>
+
+      <label style="margin-top: 12px; display: block">Cole o resumo da conversa</label>
+      <textarea id="orResumo" rows="7" placeholder="RESUMO DO FRETE&#10;Itens: 1 geladeira; 1 sofá&#10;Origem: ..."></textarea>
+      <div style="display: flex; gap: 8px">
+        <button onclick="lerResumo()" style="flex: 2">📋 Ler resumo</button>
+        <button onclick="novoOrcamentoRapido()" style="flex: 1; background: #666">Limpar</button>
+      </div>
+
+      <div id="orForm" style="display: none; margin-top: 10px">
+        <div class="grid">
+          <div>
+            <label>Cliente</label>
+            <input id="orCliente" placeholder="Nome do cliente" />
+          </div>
+          <div>
+            <label>Como chegou</label>
+            <select id="orCanal">
+              <option value="">Não sei</option>
+              <option value="Google">Google</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Instagram">Instagram</option>
+              <option value="Indicação">Indicação</option>
+              <option value="Cliente antigo">Cliente antigo</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+        </div>
+
+        <label><b>Itens</b> <small style="color: #666">(amarelo = confira a categoria)</small></label>
+        <div id="orItens"></div>
+        <button onclick="adicionarItemRapido()" style="background: #666; padding: 8px">+ Item</button>
+
+        <div class="grid">
+          <div>
+            <label>Origem</label>
+            <input id="orOrigem" />
+            <div style="display: flex; gap: 6px">
+              <input id="orLancesO" type="number" min="0" placeholder="Lances" style="flex: 1" />
+              <select id="orAcessoO" style="flex: 1"></select>
+            </div>
+            <label style="font-size: 13px"><input type="checkbox" id="orElevO" style="width: auto" /> elevador</label>
+          </div>
+          <div>
+            <label>Destino</label>
+            <input id="orDestino" />
+            <div style="display: flex; gap: 6px">
+              <input id="orLancesD" type="number" min="0" placeholder="Lances" style="flex: 1" />
+              <select id="orAcessoD" style="flex: 1"></select>
+            </div>
+            <label style="font-size: 13px"><input type="checkbox" id="orElevD" style="width: auto" /> elevador</label>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label>Ajudantes</label>
+            <select id="orAjudantes">
+              <option value="0">Sem ajudantes</option>
+              <option value="1">1 ajudante</option>
+              <option value="com">Com ajudantes (2 ou 3)</option>
+            </select>
+          </div>
+          <div>
+            <label>Data</label>
+            <input id="orData" type="date" />
+          </div>
+        </div>
+        <label>Pedágio (R$)</label>
+        <input id="orPedagio" type="number" value="0" />
+
+        <button onclick="calcularRapido()" style="background: #2e7d32; margin-top: 12px">⚡ Calcular e salvar</button>
+        <p id="orStatus" style="font-size: 13px; color: #666"></p>
+
+        <div id="orResultado" style="display: none; background: #e8f5e9; padding: 12px; border-radius: 10px">
+          <div id="orResumoValor"></div>
+          <textarea id="orMensagem" rows="11" style="margin-top: 8px"></textarea>
+          <button onclick="copiarMensagemRapida()" style="background: #25d366">📋 Copiar mensagem</button>
+        </div>
+      </div>
+    </details>
+
     <div class="grid">
       <div>
         <label><b>Cliente</b></label>
@@ -197,10 +283,12 @@
         <select id="canal">
           <option value="">Não informado</option>
           <option value="Google">Google</option>
-          <option value="WhatsApp">WhatsApp</option>
+          <option value="Facebook">Facebook</option>
+          <option value="Instagram">Instagram</option>
           <option value="Indicação">Indicação</option>
           <option value="Cliente antigo">Cliente antigo</option>
           <option value="Outro">Outro</option>
+          <option value="WhatsApp">WhatsApp (antigo, trocar)</option>
         </select>
 
         <label><b>Data do Serviço</b></label>
@@ -606,10 +694,12 @@
       }
 
       // ===== SALVAR =====
-      function salvar() {
+      // opcoes.silencioso: salva sem a mensagem de "salvo com sucesso" (usado pelo orçamento rápido)
+      // opcoes.extras: campos a mais guardados no registro (ex.: resumo da IA, código do orçamento)
+      function salvar(opcoes = {}) {
         if (!el('cliente').value) {
           alert('Por favor, preencha pelo menos o nome do cliente.');
-          return;
+          return null;
         }
 
         calcular();
@@ -644,6 +734,16 @@
           ...ultimo,
         };
 
+        // campos do orçamento rápido que não estão no formulário: preserva ao editar
+        if (posicao >= 0) {
+          ['codigoOrcamento', 'resumoIA', 'meio', 'itensTexto'].forEach((k) => {
+            if (lista[posicao][k] !== undefined) obj[k] = lista[posicao][k];
+          });
+        }
+        Object.assign(obj, opcoes.extras || {});
+        // o código mostrado ao cliente (padrão do site) vale como código do registro
+        if (obj.codigoOrcamento) obj.codigo = obj.codigoOrcamento;
+
         if (posicao >= 0) {
           lista[posicao] = obj;
         } else {
@@ -654,7 +754,8 @@
         localStorage.setItem('orcamentosV3', JSON.stringify(lista));
         listar();
         enfileirar([obj]);
-        alert('Registro salvo com sucesso!');
+        if (!opcoes.silencioso) alert('Registro salvo com sucesso!');
+        return obj;
 
         // Limpar campos após salvar (opcional)
         // el('cliente').value = '';
@@ -734,7 +835,16 @@
                 <div style="margin-top:10px;">
                   ${o.status === 'Compromisso' ? '🗓️' : `💰 <b>R$ ${num(o.valor).toFixed(2)}</b> |`} 📅 ${o.dataServico ? o.dataServico.split('-').reverse().join('/') : o.dataCriacao}
                 </div>
-                <div style="display:flex; gap:10px; margin-top:15px;">
+                ${o.codigo && o.status !== 'Compromisso' ? `<small style="color:#888;">Cód. ${o.codigo}${o.meio ? ' · ' + o.meio : ''}</small>` : ''}
+                ${
+                  o.status === 'Em Aberto'
+                    ? `<div style="display:flex; gap:10px; margin-top:12px;">
+                  <button onclick="mudarStatusRapido('${o.id}','Fechado')" style="flex:1; background:#2e7d32;">✅ Fechou</button>
+                  <button onclick="mudarStatusRapido('${o.id}','Perdido')" style="flex:1; background:#757575;">❌ Não fechou</button>
+                </div>`
+                    : ''
+                }
+                <div style="display:flex; gap:10px; margin-top:10px;">
                   <button onclick="editar('${o.id}')" style="flex:1;">Editar</button>
                   <button onclick="excluirO('${o.id}')" class="btn-excluir" style="flex:1;">Excluir</button>
                 </div>
@@ -1351,6 +1461,483 @@
       }
 
       window.addEventListener('online', enviarFila);
+
+      // ===== BOTÕES RÁPIDOS DO CARD: FECHOU / NÃO FECHOU =====
+      function mudarStatusRapido(id, novoStatus) {
+        let lista = lerLista();
+        let o = lista.find((x) => x.id === id);
+        if (!o) return;
+
+        if (novoStatus === 'Fechado') {
+          const atual = o.dataServico ? o.dataServico.split('-').reverse().join('/') : '';
+          const resp = prompt('Data do frete (dd/mm/aaaa):', atual);
+          if (resp === null) return;
+          const m = resp.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (!m) {
+            alert('Data inválida. Use dd/mm/aaaa.');
+            return;
+          }
+          o.dataServico = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+        } else if (!confirm(`Marcar "${o.cliente}" como não fechado (Perdido)?`)) {
+          return;
+        }
+
+        o.status = novoStatus;
+        localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        listar();
+        enfileirar([o]);
+      }
+
+      // ===== ORÇAMENTO RÁPIDO =====
+      // Usa as MESMAS regras da calculadora do site (script.js): tempos por categoria,
+      // 1,7 min por lance, acesso, ajudantes, R$ 1,77/km, R$ 35/h + R$ 40/h,
+      // ajudante R$ 20/h (mínimo R$ 35) e 25% de margem.
+      const GOOGLE_MAPS_API_KEY = 'AIzaSyCVOtyZSUV_1bme-3nJd7fepUKCrLDPnkg';
+      const ENDERECO_BASE = 'Rua 7 de Setembro, 38, Bairro da Paz, Salvador, BA, Brasil';
+      const TEMPO_POR_CATEGORIA = { leve: 0.7, medio: 4, pesado: 8, extraPesado: 16 };
+      const NOMES_CATEGORIA = { leve: 'Leve', medio: 'Médio', pesado: 'Pesado', extraPesado: 'Extra pesado' };
+      const ITENS_LEVES_POR_VIAGEM = 2;
+      const ITENS_POR_VIAGEM = { Blocos: 4, Tijolos: 10, 'Telha de barro': 6, 'Telha de concreto': 4 };
+      const TEMPO_ACESSO = { porta: 0, perto: 0.5, distante: 2, corredor: 1.5, fundo: 2 };
+      const NOMES_ACESSO = { porta: 'Carro na porta', perto: 'Perto', distante: 'Distante', corredor: 'Beco/corredor', fundo: 'Fundo do terreno' };
+      const MIN_POR_LANCE = 1.7;
+      const MIN_ELEVADOR = 1.5;
+
+      // catálogo do site: item -> categoria
+      const CATALOGO = {
+        Cadeira: 'leve', Tapete: 'leve', Ventilador: 'leve', 'Forno elétrico': 'leve',
+        'Caixas/sacolas': 'leve', 'Criado-mudo': 'leve', Espelho: 'leve', Computador: 'leve',
+        'Micro-ondas': 'leve', Sapateira: 'leve', Acessórios: 'leve', Cesto: 'leve',
+        Varal: 'leve', Ferramentas: 'leve', Gaveteiro: 'leve', 'Caixa registradora': 'leve',
+        Arara: 'leve', Manequim: 'leve', 'Saco de argamassa': 'leve', Rejunte: 'leve',
+        Tinta: 'leve', 'Massa corrida': 'leve', Gesso: 'leve', 'Cano PVC': 'leve',
+        Vergalhão: 'leve', 'Calha plástica': 'leve', 'Calha de zinco': 'leve',
+        'Telha plástica': 'leve', 'Telha de zinco': 'leve', 'Telha Eternit': 'leve',
+        'Saco de entulho pequeno': 'leve', 'Saco de entulho médio': 'leve',
+        'Saco de entulho grande': 'leve', Papelão: 'leve', Metal: 'leve',
+        'Objeto frágil': 'leve', 'Instrumento musical': 'leve', 'Air fryer': 'leve',
+        Vidro: 'leve', 'Planta pequena': 'leve',
+        TV: 'medio', Poltrona: 'medio', Botijão: 'medio', Tanquinho: 'medio',
+        'Saco de cimento': 'medio', 'Saco de areia': 'medio', Mesa: 'medio', Fogão: 'medio',
+        Rack: 'medio', Painel: 'medio', Colchão: 'medio', Cama: 'medio', Baú: 'medio',
+        Escrivaninha: 'medio', 'Máquina de lavar': 'medio', Box: 'medio', Armário: 'medio',
+        'Cadeira de escritório': 'medio', 'Mesa de escritório': 'medio', Impressora: 'medio',
+        Arquivo: 'medio', Estante: 'medio', 'Freezer vertical': 'medio',
+        'Freezer horizontal': 'medio', Bicicleta: 'medio', Pneus: 'medio', Motor: 'medio',
+        Escada: 'medio', Expositor: 'medio', Balcão: 'medio', Prateleira: 'medio',
+        Vitrine: 'medio', Palete: 'medio', Porta: 'medio', Janela: 'medio', Madeira: 'medio',
+        Blocos: 'medio', Tijolos: 'medio', 'Telha de barro': 'medio', 'Telha de concreto': 'medio',
+        'Móvel para descarte': 'medio', 'Eletrodoméstico para descarte': 'medio',
+        'Espelho grande': 'medio', 'Planta média': 'medio',
+        Sofá: 'pesado', Geladeira: 'pesado', 'Guarda-roupa montado': 'pesado',
+        'Guarda-roupa desmontado': 'pesado', Cômoda: 'pesado', Freezer: 'pesado',
+        'Ar Condicionado': 'pesado', Centrífuga: 'pesado', 'Planta grande': 'pesado',
+      };
+
+      // jeitos comuns de escrever -> nome do catálogo
+      const SINONIMOS = {
+        'guarda roupa': 'Guarda-roupa montado', 'guarda-roupa': 'Guarda-roupa montado',
+        caixa: 'Caixas/sacolas', sacola: 'Caixas/sacolas', saco: 'Caixas/sacolas',
+        microondas: 'Micro-ondas', 'maquina de lavar': 'Máquina de lavar', lavadora: 'Máquina de lavar',
+        televisao: 'TV', televisor: 'TV',
+        'ar condicionado': 'Ar Condicionado', geladeira: 'Geladeira', refrigerador: 'Geladeira',
+        cadeiras: 'Cadeira', 'cadeira de escritorio': 'Cadeira de escritório',
+        'mesa de escritorio': 'Mesa de escritório', bujao: 'Botijão', botijao: 'Botijão',
+        'criado mudo': 'Criado-mudo', 'comoda': 'Cômoda', armario: 'Armário', 'tanquinho': 'Tanquinho',
+      };
+
+      function normalizar(t) {
+        return String(t || '')
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9 ]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      const singular = (p) => p.replace(/(oes|aes)$/, 'ao').replace(/(ns)$/, 'm').replace(/s$/, '');
+
+      // procura o item do catálogo que melhor combina com o texto:
+      // vale o que aparece primeiro no texto; empate, o nome mais completo
+      // (ex.: "cadeira de escritório" ganha de "cadeira")
+      function acharNoCatalogo(texto) {
+        const alvo = ' ' + normalizar(texto).split(' ').map(singular).join(' ') + ' ';
+        let melhor = null;
+        let posicaoMelhor = Infinity;
+        let tamanho = 0;
+        const candidatos = [
+          ...Object.keys(CATALOGO).map((n) => [n, n]),
+          ...Object.entries(SINONIMOS),
+        ];
+        candidatos.forEach(([chave, nome]) => {
+          const c = normalizar(chave).split(' ').map(singular).join(' ');
+          if (!c) return;
+          const pos = alvo.indexOf(' ' + c + ' ');
+          if (pos < 0) return;
+          if (pos < posicaoMelhor || (pos === posicaoMelhor && c.length > tamanho)) {
+            melhor = nome;
+            posicaoMelhor = pos;
+            tamanho = c.length;
+          }
+        });
+        return melhor;
+      }
+
+      let itensRapido = []; // {qtd, nome, categoria, alerta}
+      let orIdAtual = null;
+
+      function preencherSelectAcesso(id) {
+        el(id).innerHTML = Object.entries(NOMES_ACESSO)
+          .map(([v, t]) => `<option value="${v}">${t}</option>`)
+          .join('');
+      }
+      preencherSelectAcesso('orAcessoO');
+      preencherSelectAcesso('orAcessoD');
+
+      function lerResumo() {
+        const texto = el('orResumo').value;
+        if (!texto.trim()) {
+          alert('Cole o resumo primeiro.');
+          return;
+        }
+
+        // lê as linhas "Chave: valor"
+        const campos = {};
+        texto.split(/\n/).forEach((linha) => {
+          const l = linha.replace(/^[\s•\-*]+/, '');
+          const i = l.indexOf(':');
+          if (i < 0) return;
+          const chave = normalizar(l.slice(0, i));
+          const valor = l.slice(i + 1).trim();
+          // "Origem: X → Destino: Y" na mesma linha
+          if (chave === 'origem' && /destino\s*:/i.test(valor)) {
+            const partes = valor.split(/→|->|destino\s*:/i).map((s) => s.trim()).filter(Boolean);
+            campos['origem'] = partes[0];
+            campos['destino'] = partes[partes.length - 1].replace(/^destino\s*:/i, '').trim();
+            return;
+          }
+          campos[chave] = valor;
+        });
+
+        const pegar = (...nomes) => {
+          for (const n of nomes) {
+            const k = Object.keys(campos).find((c) => c === n || c.startsWith(n));
+            if (k) return campos[k];
+          }
+          return '';
+        };
+
+        // itens
+        const textoItens = pegar('itens', 'material');
+        // separa por ";" ou, no formato antigo, por vírgula/"e" (sem quebrar "mesa 1,90")
+        const pedacos = textoItens.includes(';')
+          ? textoItens.split(';')
+          : textoItens.split(/,(?!\d)|\se\s/);
+        itensRapido = pedacos
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => {
+            const m = p.match(/^(\d+)\s*(.*)$/);
+            let qtd = m ? parseInt(m[1], 10) : /^(um|uma)\b/i.test(p) ? 1 : 1;
+            let nomeTexto = (m ? m[2] : p.replace(/^(um|uma)\s+/i, '')).trim();
+            const nomeCatalogo = acharNoCatalogo(nomeTexto);
+            const ehJogo = /\b(jogo|conjunto|kit)\b/i.test(nomeTexto);
+            return {
+              qtd,
+              nome: nomeTexto,
+              categoria: nomeCatalogo ? CATALOGO[nomeCatalogo] : '',
+              catalogo: nomeCatalogo || '',
+              alerta: !nomeCatalogo ? 'Item não cadastrado: escolha a categoria' : ehJogo ? 'Jogo/conjunto: confira quantas peças' : '',
+            };
+          });
+
+        // locais
+        el('orOrigem').value = pegar('origem');
+        el('orDestino').value = pegar('destino');
+        const lances = (txt) => {
+          const t = normalizar(txt);
+          if (t.includes('terreo')) return 0;
+          const n = t.match(/\d+/);
+          return n ? parseInt(n[0], 10) : 0;
+        };
+        const acesso = (txt) => {
+          // "sem beco, ladeira..." não é beco: ignora o que vem depois de "sem"
+          const t = normalizar(String(txt).replace(/\bsem\b[^,;]*/gi, ''));
+          if (t.includes('beco') || t.includes('corredor')) return 'corredor';
+          if (t.includes('fundo')) return 'fundo';
+          if (t.includes('distante') || t.includes('longe')) return 'distante';
+          if (t.includes('perto')) return 'perto';
+          return 'porta';
+        };
+        // formato antigo: lances escritos dentro da linha do endereço ("3º andar (3 lances)")
+        const lancesNoEndereco = (txt) => {
+          const m = String(txt).match(/(\d+)\s*lances?|(\d+)\s*[ºo°]?\s*andar/i);
+          return m ? m[1] || m[2] : /elevador/i.test(txt) ? 'elevador' : '';
+        };
+        const lO =
+          pegar('lances na origem', 'lances origem', 'andares na origem') ||
+          lancesNoEndereco(el('orOrigem').value);
+        const lD =
+          pegar('lances no destino', 'lances destino', 'andares no destino') ||
+          lancesNoEndereco(el('orDestino').value);
+        el('orLancesO').value = lances(lO);
+        el('orLancesD').value = lances(lD);
+        el('orElevO').checked = /elevador/i.test(lO);
+        el('orElevD').checked = /elevador/i.test(lD);
+        el('orAcessoO').value = acesso(pegar('acesso na origem', 'acesso origem'));
+        el('orAcessoD').value = acesso(pegar('acesso no destino', 'acesso destino'));
+
+        // resumo antigo com "Acesso:" único para os dois locais
+        const acessoGeral = pegar('acesso');
+        if (acessoGeral && !pegar('acesso na origem')) {
+          el('orAcessoO').value = acesso(acessoGeral);
+          el('orAcessoD').value = acesso(acessoGeral);
+        }
+
+        // ajudantes
+        const aj = normalizar(pegar('ajudante', 'servico'));
+        el('orAjudantes').value = /\b1\b|um ajudante/.test(aj)
+          ? '1'
+          : /com ajudante|\bsim\b|\b[2-9]\b/.test(aj)
+            ? 'com'
+            : '0';
+
+        // data
+        const dt = pegar('data');
+        const md = dt.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (md) el('orData').value = `${md[3]}-${md[2].padStart(2, '0')}-${md[1].padStart(2, '0')}`;
+        else if (/hoje/i.test(dt)) {
+          // data local (toISOString usaria o horário de Londres e, à noite, daria o dia seguinte)
+          const h = new Date();
+          el('orData').value = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+        }
+        else el('orData').value = '';
+
+        const nome = pegar('cliente', 'nome');
+        if (nome) el('orCliente').value = nome;
+
+        el('orPedagio').value = 0;
+        orIdAtual = null;
+        el('orResultado').style.display = 'none';
+        el('orStatus').textContent = '';
+        renderizarItensRapido();
+        el('orForm').style.display = 'block';
+      }
+
+      function renderizarItensRapido() {
+        const opcoes = (sel) =>
+          '<option value="">Categoria?</option>' +
+          Object.entries(NOMES_CATEGORIA)
+            .map(([v, t]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${t} (${TEMPO_POR_CATEGORIA[v]} min)</option>`)
+            .join('');
+        el('orItens').innerHTML = itensRapido
+          .map(
+            (it, i) => `
+          <div style="background:${it.alerta || !it.categoria ? '#fff3cd' : '#fff'}; border:1px solid #ddd; border-radius:8px; padding:6px; margin-bottom:6px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="number" min="1" value="${it.qtd}" style="width:60px; margin:0;" onchange="itensRapido[${i}].qtd=parseInt(this.value)||1">
+              <input value="${String(it.nome).replace(/"/g, '&quot;')}" style="flex:1; margin:0;" onchange="itensRapido[${i}].nome=this.value">
+              <button onclick="itensRapido.splice(${i},1);renderizarItensRapido()" style="width:40px; margin:0; background:#d32f2f;">✖</button>
+            </div>
+            <select style="margin-top:4px;" onchange="itensRapido[${i}].categoria=this.value; itensRapido[${i}].alerta=''; renderizarItensRapido()">${opcoes(it.categoria)}</select>
+            ${it.alerta ? `<small style="color:#8a6d00;">⚠️ ${it.alerta}</small>` : ''}
+          </div>`,
+          )
+          .join('');
+      }
+
+      function adicionarItemRapido() {
+        itensRapido.push({ qtd: 1, nome: '', categoria: '', alerta: 'Escolha a categoria' });
+        renderizarItensRapido();
+      }
+
+      function novoOrcamentoRapido() {
+        el('orResumo').value = '';
+        el('orForm').style.display = 'none';
+        el('orCliente').value = '';
+        el('orCanal').value = '';
+        itensRapido = [];
+        orIdAtual = null;
+      }
+
+      function enderecoParaRota(txt) {
+        const t = txt.trim();
+        return /\b(ba|bahia)\b/i.test(t) ? `${t}, Brasil` : `${t}, BA, Brasil`;
+      }
+
+      async function calcularRota(origem, destino) {
+        const resposta = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters',
+          },
+          body: JSON.stringify({
+            origin: { address: ENDERECO_BASE },
+            destination: { address: ENDERECO_BASE },
+            intermediates: [{ address: enderecoParaRota(origem) }, { address: enderecoParaRota(destino) }],
+            travelMode: 'DRIVE',
+            routingPreference: 'TRAFFIC_AWARE',
+            units: 'METRIC',
+          }),
+        });
+        if (!resposta.ok) throw new Error('Rota: ' + resposta.status + ' ' + (await resposta.text()));
+        const dados = await resposta.json();
+        if (!dados.routes || !dados.routes.length) throw new Error('Nenhuma rota encontrada.');
+        return {
+          km: Number((dados.routes[0].distanceMeters / 1000).toFixed(1)),
+          minutos: Math.round(parseInt(dados.routes[0].duration.replace('s', ''), 10) / 60),
+        };
+      }
+
+      // mesmo cálculo do site, a partir dos itens, acessos e da rota
+      function calcularPrecoSite(rota) {
+        const totalUnidades = itensRapido.reduce((t, it) => t + (it.qtd || 0), 0);
+        const lancesO = el('orElevO').checked ? 0 : num(el('orLancesO').value);
+        const lancesD = el('orElevD').checked ? 0 : num(el('orLancesD').value);
+        const vertO = el('orElevO').checked ? MIN_ELEVADOR : lancesO * MIN_POR_LANCE;
+        const vertD = el('orElevD').checked ? MIN_ELEVADOR : lancesD * MIN_POR_LANCE;
+        const totalAndares = lancesO + lancesD;
+        const escolha = el('orAjudantes').value;
+        const qtdAjudantes = escolha === '1' ? 1 : escolha === 'com' ? (totalUnidades >= 20 && totalAndares > 4 ? 3 : 2) : 0;
+
+        const extraPorItem = TEMPO_ACESSO[el('orAcessoO').value] + TEMPO_ACESSO[el('orAcessoD').value] + vertO + vertD;
+        let manuseio = 0;
+        let leves = 0;
+        let tempoViagemLeve = 0;
+        itensRapido.forEach((it) => {
+          const base = TEMPO_POR_CATEGORIA[it.categoria];
+          const porItem = base + extraPorItem;
+          const porViagem = ITENS_POR_VIAGEM[it.catalogo];
+          if (porViagem) {
+            manuseio += porItem * Math.ceil(it.qtd / porViagem);
+          } else if (it.categoria === 'leve') {
+            leves += it.qtd;
+            tempoViagemLeve = porItem;
+          } else {
+            manuseio += porItem * it.qtd;
+          }
+        });
+        if (leves > 0) manuseio += Math.ceil(leves / ITENS_LEVES_POR_VIAGEM) * tempoViagemLeve;
+
+        const totalMin = manuseio + rota.minutos;
+        const horas = totalMin / 60;
+        const custoCarro = rota.km * 1.77;
+        const motorista = horas * 35;
+        const proprietario = horas * 40;
+        const custoAjudantes = qtdAjudantes ? qtdAjudantes * Math.max(horas * 20, 35) : 0;
+        const subtotal = custoCarro + motorista + proprietario + custoAjudantes;
+        const margem = subtotal * 0.25;
+        return { manuseio, totalMin, qtdAjudantes, custoAjudantes, margem, valorSite: subtotal + margem };
+      }
+
+      function formatarMinutos(min) {
+        const h = Math.floor(min / 60);
+        const m = Math.round(min % 60);
+        return h ? `${h} h ${m} min` : `${m} min`;
+      }
+
+      async function calcularRapido() {
+        if (!el('orCliente').value.trim()) {
+          alert('Informe o nome do cliente.');
+          return;
+        }
+        if (!el('orOrigem').value.trim() || !el('orDestino').value.trim()) {
+          alert('Informe origem e destino (pelo menos bairro e cidade).');
+          return;
+        }
+        if (!itensRapido.length) {
+          alert('Nenhum item.');
+          return;
+        }
+        const semCategoria = itensRapido.filter((it) => !it.categoria);
+        if (semCategoria.length) {
+          alert('Escolha a categoria de: ' + semCategoria.map((i) => i.nome || '(sem nome)').join(', '));
+          return;
+        }
+
+        el('orStatus').textContent = 'Calculando a rota...';
+        let rota;
+        try {
+          rota = await calcularRota(el('orOrigem').value, el('orDestino').value);
+        } catch (e) {
+          console.error(e);
+          el('orStatus').textContent = 'Não foi possível calcular a rota. Confira origem e destino (bairro e cidade) e a internet.';
+          return;
+        }
+
+        const r = calcularPrecoSite(rota);
+        const pedagio = num(el('orPedagio').value);
+        const valor = r.valorSite + pedagio;
+        const codigo = `${Math.round(rota.km)}-${Math.round(r.totalMin / 60)}/91${Math.floor(valor) + 1}0096`;
+        const itensTexto = itensRapido.map((it) => `${it.qtd} ${it.nome}`).join('; ');
+
+        // preenche o formulário principal com o equivalente do sistema e salva
+        el('cliente').value = el('orCliente').value.trim();
+        el('telefone').value = '';
+        el('status').value = 'Em Aberto';
+        el('canal').value = el('orCanal').value;
+        el('origem').value = el('orOrigem').value;
+        el('destino').value = el('orDestino').value;
+        el('dataServico').value = el('orData').value;
+        el('km').value = rota.km;
+        el('transito').value = rota.minutos / 60;
+        el('carga').value = r.manuseio / 60;
+        el('horaPai').value = 40;
+        el('horaJhon').value = 35;
+        el('ajudantes').value = r.qtdAjudantes;
+        el('valorAjudante').value = r.qtdAjudantes ? r.custoAjudantes / r.qtdAjudantes : 0;
+        el('margem').value = r.margem;
+        el('custosAdicionais').value = pedagio;
+        el('ajudanteJhon').value = 0;
+
+        editando = orIdAtual; // recalcular o mesmo orçamento atualiza o mesmo registro
+        const salvo = salvar({
+          silencioso: true,
+          extras: {
+            codigoOrcamento: codigo,
+            resumoIA: el('orResumo').value,
+            meio: 'Conversa',
+            itensTexto,
+          },
+        });
+        if (!salvo) return;
+        orIdAtual = salvo.id;
+
+        // mensagem do WhatsApp
+        const margemMsg = num(el('margemMensagem').value);
+        const longa = rota.km > 120;
+        const linhasAj = r.qtdAjudantes
+          ? `👷 Com ${r.qtdAjudantes} ajudante${r.qtdAjudantes > 1 ? 's' : ''} para carga e descarga.`
+          : '👉 Apenas transporte, sem carga e descarga.';
+        el('orMensagem').value =
+          `${el('orCliente').value.trim()}, agradeço pelo contato! 😊\n\n` +
+          `📍 ${el('orOrigem').value} → ${el('orDestino').value}\n` +
+          `📦 ${itensTexto}\n\n` +
+          `Orçamento: ${codigo}\n\n` +
+          `💰 O frete fica em R$ ${(valor + margemMsg).toFixed(2)}\n\n` +
+          `*Consigo fazer por R$ ${valor.toFixed(2)} pra fecharmos hoje* 🤝\n\n` +
+          `${linhasAj}\n` +
+          (pedagio ? `🛣️ Pedágio incluso (R$ ${pedagio.toFixed(2)}).\n` : '') +
+          `ℹ️ Valor para 1 viagem. Domingo, feriado e horário noturno podem alterar o valor.\n\n` +
+          `Formas de pagamento:\nPIX, crédito à vista ou parcelado por aproximação.(+ taxas)`;
+
+        el('orResumoValor').innerHTML =
+          `<b style="font-size:20px; color:#2e7d32;">R$ ${valor.toFixed(2)}</b> · Cód. ${codigo}<br>` +
+          `<small>${rota.km} km · rodando ${formatarMinutos(rota.minutos)} · carga ${formatarMinutos(r.manuseio)} · total ${formatarMinutos(r.totalMin)}` +
+          `${r.qtdAjudantes ? ` · ${r.qtdAjudantes} ajudante(s)` : ''}</small>` +
+          (longa ? '<br><b style="color:#e65100;">⚠️ Viagem longa: confira pedágio e retorno.</b>' : '');
+        el('orResultado').style.display = 'block';
+        el('orStatus').textContent = '✅ Salvo como Em Aberto e enviado para a planilha.';
+      }
+
+      function copiarMensagemRapida() {
+        navigator.clipboard
+          .writeText(el('orMensagem').value)
+          .then(() => alert('Mensagem copiada!'))
+          .catch(() => alert('Não deu para copiar. Selecione o texto e copie à mão.'));
+      }
 
       // Inicialização
       listar();

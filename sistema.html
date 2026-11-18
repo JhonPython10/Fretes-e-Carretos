@@ -856,7 +856,7 @@
               <div class="card" style="border-left:4px solid ${o.status === 'Diesel' ? '#ef6c00' : '#00796b'};">
                 <b>${o.status === 'Diesel' ? '⛽ Abastecimento' : '💸 Repasse ao pai'}</b> · R$ ${num(o.valor).toFixed(2)} · ${dataBR(o.dataServico)}
                 ${o.status === 'Diesel' ? `<br><small>${o.repassadoPai ? 'descontado no repasse de ' + dataBR(o.repassadoPai) : 'ainda não descontado'}</small>` : `<br><small>${o.itensTexto || ''}</small>`}
-                ${o.status === 'Diesel' && !o.repassadoPai ? `<button onclick="excluirO('${o.id}')" class="btn-excluir" style="margin-top:8px; padding:6px;">Excluir</button>` : ''}
+                ${(o.status === 'Diesel' && !o.repassadoPai) || o.status === 'Repasse' ? `<button onclick="excluirO('${o.id}')" class="btn-excluir" style="margin-top:8px; padding:6px;">Excluir</button>` : ''}
               </div>`;
             }
             return;
@@ -1079,9 +1079,14 @@
 
       // ===== EXCLUIR =====
       function excluirO(id) {
-        if (!confirm('Tem certeza que deseja excluir este registro?')) return;
         let todos = lerLista();
         let removido = todos.find((o) => o.id === id);
+        // repasse: apaga só o registro do Pix; os fretes continuam marcados como repassados
+        const pergunta =
+          removido && removido.status === 'Repasse'
+            ? `Excluir este repasse de R$ ${num(removido.valor).toFixed(2)}?\n\nOs fretes dele continuam marcados como repassados; some só o registro do Pix.`
+            : 'Tem certeza que deseja excluir este registro?';
+        if (!confirm(pergunta)) return;
         let lista = todos.filter((o) => o.id !== id);
         localStorage.setItem('orcamentosV3', JSON.stringify(lista));
         // na planilha a linha não é apagada: fica marcada como Excluído

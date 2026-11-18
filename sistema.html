@@ -1545,12 +1545,13 @@
       // ===== REPASSE AO PAI =====
       // Fretes Fechados, já feitos (data até hoje), ainda sem repasse,
       // + abastecimentos ainda não descontados.
-      // Subtotal = valor do frete − ajudantes; Total = subtotal − sua comissão − diesel.
+      // Subtotal = valor do frete − ajudantes − custos adicionais; Total = subtotal − sua comissão − diesel.
+      // Custos adicionais (almoço, pedágio...) o cliente pagou e você já gastou: não são do pai.
       const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
       let desmarcadosRepasse = new Set();
 
       const moeda = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const subtotalFrete = (o) => num(o.valor) - num(o.custoAjud);
+      const subtotalFrete = (o) => num(o.valor) - num(o.custoAjud) - num(o.custosAdicionais);
 
       function fretesPendentesPai(lista) {
         const hoje = hojeISO();

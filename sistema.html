@@ -176,6 +176,25 @@
     <h1>Sistema de Fretes V5</h1>
     <div id="avisoFila" style="text-align: center; margin: -20px 0 15px; font-size: 13px; color: #666"></div>
 
+    <!-- ===== ABASTECIMENTO E REPASSE AO PAI ===== -->
+    <div style="display: flex; gap: 8px; margin-bottom: 10px">
+      <button onclick="registrarAbastecimento()" style="flex: 1; background: #ef6c00">⛽ Abasteci</button>
+      <button onclick="abrirRepasse()" style="flex: 1; background: #00796b">💸 Repasse ao pai</button>
+    </div>
+
+    <div class="painel" id="areaRepasse" style="display: none; border: 2px solid #00796b">
+      <h3 style="color: #00796b">💸 Repasse ao pai</h3>
+      <div id="repasseAntigos"></div>
+      <label>Fretes a partir de</label>
+      <input type="date" id="repasseDesde" onchange="montarRepasse()" />
+      <div id="repasseLista" style="margin-top: 10px"></div>
+      <div id="repasseTotais" style="margin-top: 10px"></div>
+      <textarea id="repasseMensagem" rows="14" style="margin-top: 8px"></textarea>
+      <button onclick="copiarRepasse()" style="background: #25d366">📋 Copiar mensagem</button>
+      <button onclick="confirmarRepasse()" style="background: #00796b">✅ Pix feito, marcar como pago</button>
+      <button onclick="el('areaRepasse').style.display='none'" style="background: #666">Fechar</button>
+    </div>
+
     <!-- ===== ORÇAMENTO RÁPIDO (resumo da IA do WhatsApp) ===== -->
     <details class="painel" id="orcRapido" style="border: 2px solid #1976d2">
       <summary style="cursor: pointer; font-weight: bold; color: #1976d2; font-size: 17px">
@@ -562,6 +581,8 @@
             <option value="Perdido">Perdido</option>
             <option value="Cancelado">Cancelado</option>
             <option value="Compromisso">Compromisso</option>
+            <option value="Diesel">Abastecimentos</option>
+            <option value="Repasse">Repasses ao pai</option>
           </select>
         </div>
       </div>
@@ -618,6 +639,17 @@
 
       function num(v) {
         return parseFloat(v) || 0;
+      }
+
+      // data de hoje no fuso do celular, no formato aaaa-mm-dd
+      function hojeISO() {
+        const h = new Date();
+        return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+      }
+
+      // "2026-11-18" -> "18/11/2026"
+      function dataBR(iso) {
+        return iso ? String(iso).split('-').reverse().join('/') : '-';
       }
 
       const CORES_STATUS = {
@@ -736,7 +768,7 @@
 
         // campos do orçamento rápido que não estão no formulário: preserva ao editar
         if (posicao >= 0) {
-          ['codigoOrcamento', 'resumoIA', 'meio', 'itensTexto'].forEach((k) => {
+          ['codigoOrcamento', 'resumoIA', 'meio', 'itensTexto', 'repassadoPai'].forEach((k) => {
             if (lista[posicao][k] !== undefined) obj[k] = lista[posicao][k];
           });
         }
@@ -817,6 +849,19 @@
           )
             atendeFiltro = false;
 
+          // Abastecimentos e repasses: card simples, fora das contas de fretes
+          if (o.status === 'Diesel' || o.status === 'Repasse') {
+            if (atendeFiltro) {
+              htmlLista += `
+              <div class="card" style="border-left:4px solid ${o.status === 'Diesel' ? '#ef6c00' : '#00796b'};">
+                <b>${o.status === 'Diesel' ? '⛽ Abastecimento' : '💸 Repasse ao pai'}</b> · R$ ${num(o.valor).toFixed(2)} · ${dataBR(o.dataServico)}
+                ${o.status === 'Diesel' ? `<br><small>${o.repassadoPai ? 'descontado no repasse de ' + dataBR(o.repassadoPai) : 'ainda não descontado'}</small>` : `<br><small>${o.itensTexto || ''}</small>`}
+                ${o.status === 'Diesel' && !o.repassadoPai ? `<button onclick="excluirO('${o.id}')" class="btn-excluir" style="margin-top:8px; padding:6px;">Excluir</button>` : ''}
+              </div>`;
+            }
+            return;
+          }
+
           if (atendeFiltro) {
             if (o.status !== 'Compromisso') totalGeralFiltrado += num(o.valor);
             htmlLista += `
@@ -836,6 +881,12 @@
                   ${o.status === 'Compromisso' ? '🗓️' : `💰 <b>R$ ${num(o.valor).toFixed(2)}</b> |`} 📅 ${o.dataServico ? o.dataServico.split('-').reverse().join('/') : o.dataCriacao}
                 </div>
                 ${o.codigo && o.status !== 'Compromisso' ? `<small style="color:#888;">Cód. ${o.codigo}${o.meio ? ' · ' + o.meio : ''}</small>` : ''}
+                ${
+                  o.status === 'Fechado' && o.dataServico && o.dataServico <= hojeISO()
+                    ? `<div style="margin-top:6px; font-size:13px; font-weight:bold; color:${o.repassadoPai ? '#2e7d32' : '#e65100'};">
+                    pai: ${o.repassadoPai ? 'pago ' + dataBR(o.repassadoPai) : 'pendente'}</div>`
+                    : ''
+                }
                 ${
                   o.status === 'Em Aberto'
                     ? `<div style="display:flex; gap:10px; margin-top:12px;">
@@ -1461,6 +1512,215 @@
       }
 
       window.addEventListener('online', enviarFila);
+
+      // ===== ABASTECIMENTO =====
+      function registrarAbastecimento() {
+        const resp = prompt('Valor do abastecimento (R$):');
+        if (resp === null) return;
+        // aceita "150", "150,50" e "150.50"
+        const t = resp.trim();
+        const valor = t.includes(',') ? parseFloat(t.replace(/\./g, '').replace(',', '.')) || 0 : parseFloat(t) || 0;
+        if (valor <= 0) {
+          alert('Valor inválido.');
+          return;
+        }
+        const reg = {
+          id: novoId(),
+          status: 'Diesel',
+          cliente: 'Abastecimento',
+          telefone: '',
+          valor: valor,
+          dataServico: hojeISO(),
+          dataCriacao: new Date().toLocaleDateString('pt-BR'),
+        };
+        const lista = lerLista();
+        lista.push(reg);
+        localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        listar();
+        enfileirar([reg]);
+        alert(`Abastecimento de R$ ${valor.toFixed(2)} guardado. Entra no próximo repasse.`);
+        if (el('areaRepasse').style.display === 'block') montarRepasse();
+      }
+
+      // ===== REPASSE AO PAI =====
+      // Fretes Fechados, já feitos (data até hoje), ainda sem repasse,
+      // + abastecimentos ainda não descontados.
+      // Subtotal = valor do frete − ajudantes; Total = subtotal − sua comissão − diesel.
+      const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      let desmarcadosRepasse = new Set();
+
+      const moeda = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const subtotalFrete = (o) => num(o.valor) - num(o.custoAjud);
+
+      function fretesPendentesPai(lista) {
+        const hoje = hojeISO();
+        return lista.filter(
+          (o) => o.status === 'Fechado' && o.dataServico && o.dataServico <= hoje && !o.repassadoPai,
+        );
+      }
+
+      function abrirRepasse() {
+        const lista = lerLista();
+        // "a partir de": depois do primeiro repasse, a data do frete pendente mais antigo
+        // (assim um frete deixado de fora numa semana aparece na seguinte);
+        // no primeiro uso, 7 dias atrás (o que for mais antigo pode ser marcado como já acertado)
+        const repasses = lista.filter((o) => o.status === 'Repasse' && o.dataServico).map((o) => o.dataServico).sort();
+        const pendentes = fretesPendentesPai(lista).map((o) => o.dataServico).sort();
+        let desde;
+        if (repasses.length) {
+          desde = pendentes.length ? pendentes[0] : repasses[repasses.length - 1];
+        } else {
+          const d = new Date();
+          d.setDate(d.getDate() - 7);
+          desde = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        el('repasseDesde').value = desde;
+        desmarcadosRepasse = new Set();
+        el('areaRepasse').style.display = 'block';
+        montarRepasse();
+        el('areaRepasse').scrollIntoView({ behavior: 'smooth' });
+      }
+
+      function alternarRepasse(id) {
+        if (desmarcadosRepasse.has(id)) desmarcadosRepasse.delete(id);
+        else desmarcadosRepasse.add(id);
+        montarRepasse();
+      }
+
+      function itensDoRepasse() {
+        const lista = lerLista();
+        const desde = el('repasseDesde').value || '0000-00-00';
+        const pendentes = fretesPendentesPai(lista);
+        const fretes = pendentes
+          .filter((o) => o.dataServico >= desde)
+          .sort((a, b) => a.dataServico.localeCompare(b.dataServico));
+        const antigos = pendentes.filter((o) => o.dataServico < desde);
+        const diesel = lista.filter((o) => o.status === 'Diesel' && !o.repassadoPai);
+        return { fretes, antigos, diesel };
+      }
+
+      function montarRepasse() {
+        const { fretes, antigos, diesel } = itensDoRepasse();
+
+        el('repasseAntigos').innerHTML = antigos.length
+          ? `<div style="background:#fff3cd; padding:10px; border-radius:8px; margin-bottom:10px; font-size:14px;">
+              ⚠️ ${antigos.length} frete(s) fechado(s) antes desta data estão sem repasse marcado.
+              Se já foram acertados com seu pai, marque como já repassados:
+              <button onclick="marcarAntigosRepassados()" style="background:#8a6d00; margin-top:6px; padding:8px;">Marcar ${antigos.length} como já repassados</button>
+            </div>`
+          : '';
+
+        const linha = (o, rotulo, valorTxt) => `
+          <label style="display:flex; gap:8px; align-items:center; padding:6px; border-bottom:1px solid #eee; font-size:14px;">
+            <input type="checkbox" style="width:auto; margin:0;" ${desmarcadosRepasse.has(o.id) ? '' : 'checked'} onchange="alternarRepasse('${o.id}')">
+            <span style="flex:1;">${rotulo}</span><b>${valorTxt}</b>
+          </label>`;
+
+        el('repasseLista').innerHTML =
+          (fretes.length
+            ? fretes
+                .map((o) => linha(o, `${dataBR(o.dataServico).slice(0, 5)} ${o.cliente} · ${o.origem || '-'} > ${o.destino || '-'}`, moeda(subtotalFrete(o))))
+                .join('')
+            : '<p style="color:#666;">Nenhum frete pendente neste período.</p>') +
+          diesel.map((o) => linha(o, `⛽ Diesel ${dataBR(o.dataServico).slice(0, 5)}`, '-' + moeda(num(o.valor)))).join('');
+
+        const fSel = fretes.filter((o) => !desmarcadosRepasse.has(o.id));
+        const dSel = diesel.filter((o) => !desmarcadosRepasse.has(o.id));
+        const subtotal = fSel.reduce((t, o) => t + subtotalFrete(o), 0);
+        const comissao = fSel.reduce((t, o) => t + num(o.parteJhon), 0);
+        const totalDiesel = dSel.reduce((t, o) => t + num(o.valor), 0);
+        const total = subtotal - comissao - totalDiesel;
+
+        el('repasseTotais').innerHTML = `<b style="font-size:20px; color:#00796b;">Total para repasse: R$ ${moeda(total)}</b>`;
+
+        // mensagem no formato do Jhon, fretes agrupados por dia
+        let texto = '*Últimos Fretes*\n';
+        let diaAtual = '';
+        fSel.forEach((o) => {
+          if (o.dataServico !== diaAtual) {
+            diaAtual = o.dataServico;
+            const [a, m, d] = o.dataServico.split('-').map(Number);
+            const nomeDia = DIAS_SEMANA[new Date(a, m - 1, d).getDay()];
+            texto += `\n${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')} ${nomeDia}\n`;
+          }
+          texto += `${o.origem || '-'} > ${o.destino || '-'}\n`;
+        });
+        texto +=
+          `\n${moeda(subtotal)} Subtotal\n\n` +
+          `-${moeda(comissao)} comissão Jonathan\n` +
+          (totalDiesel ? `-${moeda(totalDiesel)} Diesel\n` : '') +
+          `\n${moeda(total)} Total para repasse`;
+        el('repasseMensagem').value = texto;
+      }
+
+      function marcarAntigosRepassados() {
+        const desde = el('repasseDesde').value;
+        if (!confirm(`Marcar os fretes fechados antes de ${dataBR(desde)} como já repassados ao pai?`)) return;
+        const lista = lerLista();
+        const mudados = [];
+        lista.forEach((o) => {
+          if (o.status === 'Fechado' && o.dataServico && o.dataServico < desde && !o.repassadoPai) {
+            o.repassadoPai = desde;
+            mudados.push(o);
+          }
+        });
+        localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        listar();
+        enfileirar(mudados);
+        montarRepasse();
+      }
+
+      function copiarRepasse() {
+        navigator.clipboard
+          .writeText(el('repasseMensagem').value)
+          .then(() => alert('Mensagem copiada!'))
+          .catch(() => alert('Não deu para copiar. Selecione o texto e copie à mão.'));
+      }
+
+      function confirmarRepasse() {
+        const { fretes, diesel } = itensDoRepasse();
+        const fSel = fretes.filter((o) => !desmarcadosRepasse.has(o.id));
+        const dSel = diesel.filter((o) => !desmarcadosRepasse.has(o.id));
+        if (!fSel.length && !dSel.length) {
+          alert('Nada selecionado para repasse.');
+          return;
+        }
+        const subtotal = fSel.reduce((t, o) => t + subtotalFrete(o), 0);
+        const comissao = fSel.reduce((t, o) => t + num(o.parteJhon), 0);
+        const totalDiesel = dSel.reduce((t, o) => t + num(o.valor), 0);
+        const total = subtotal - comissao - totalDiesel;
+        if (!confirm(`Confirmar que o Pix de R$ ${moeda(total)} foi feito ao seu pai?`)) return;
+
+        const hoje = hojeISO();
+        const ids = new Set([...fSel, ...dSel].map((o) => o.id));
+        const lista = lerLista();
+        const mudados = [];
+        lista.forEach((o) => {
+          if (ids.has(o.id)) {
+            o.repassadoPai = hoje;
+            mudados.push(o);
+          }
+        });
+        const repasse = {
+          id: novoId(),
+          status: 'Repasse',
+          cliente: 'Repasse ao pai',
+          telefone: '',
+          valor: Math.round(total * 100) / 100,
+          dataServico: hoje,
+          dataCriacao: new Date().toLocaleDateString('pt-BR'),
+          parteJhon: Math.round(comissao * 100) / 100,
+          custosAdicionais: totalDiesel,
+          itensTexto: `${fSel.length} frete(s) · subtotal ${moeda(subtotal)} · comissão ${moeda(comissao)} · diesel ${moeda(totalDiesel)}`,
+        };
+        lista.push(repasse);
+        mudados.push(repasse);
+        localStorage.setItem('orcamentosV3', JSON.stringify(lista));
+        listar();
+        enfileirar(mudados);
+        alert('Repasse registrado.');
+        el('areaRepasse').style.display = 'none';
+      }
 
       // ===== BOTÕES RÁPIDOS DO CARD: FECHOU / NÃO FECHOU =====
       function mudarStatusRapido(id, novoStatus) {
